@@ -17,7 +17,7 @@
  *
  */
 
-package main
+package mutate
 
 import (
 	"encoding/json"

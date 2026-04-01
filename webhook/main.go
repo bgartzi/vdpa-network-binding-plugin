@@ -31,6 +31,9 @@ import (
 	"time"
 
 	"kubevirt.io/client-go/log"
+
+	"kubevirt.io/vdpa-network-binding-plugin/webhook/cert"
+	"kubevirt.io/vdpa-network-binding-plugin/webhook/mutate"
 )
 
 const (
@@ -47,7 +50,7 @@ func main() {
 	svcNamespace := flag.String("namespace", "kubevirt", "Webhook service namespace")
 	flag.Parse()
 
-	certMgr, err := newCertManager(*svcName, *svcNamespace)
+	certMgr, err := cert.NewCertManager(*svcName, *svcNamespace, webhookName)
 	if err != nil {
 		log.Log.Reason(err).Errorf("Failed to initialize certificate manager")
 		os.Exit(1)
@@ -55,10 +58,10 @@ func main() {
 
 	renewalCtx, stopRenewal := context.WithCancel(context.Background())
 	defer stopRenewal()
-	go certMgr.runRenewalLoop(renewalCtx)
+	go certMgr.RunRenewalLoop(renewalCtx)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc(webhookPath, handleMutateVDPA)
+	mux.HandleFunc(webhookPath, mutate.HandleMutateVDPA)
 	mux.HandleFunc(healthzPath, handleHealthz)
 
 	srv := &http.Server{

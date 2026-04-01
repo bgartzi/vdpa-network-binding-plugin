@@ -17,7 +17,7 @@
  *
  */
 
-package main
+package mutate
 
 import (
 	"encoding/json"
@@ -44,7 +44,7 @@ const (
 	pathAddedOverhead    = pathReservedOverhead + "/addedOverhead"
 )
 
-func handleMutateVDPA(resp http.ResponseWriter, req *http.Request) {
+func HandleMutateVDPA(resp http.ResponseWriter, req *http.Request) {
 	review, err := getAdmissionReview(req)
 	if err != nil {
 		log.Log.Reason(err).Error("failed to parse AdmissionReview")

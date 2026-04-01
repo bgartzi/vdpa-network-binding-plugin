@@ -17,7 +17,7 @@
  *
  */
 
-package main
+package cert
 
 import (
 	"context"
@@ -31,7 +31,7 @@ import (
 	"kubevirt.io/kubevirt/pkg/apimachinery/patch"
 )
 
-func patchWebhookCABundle(clientset kubernetes.Interface, caCertPEM []byte) error {
+func patchWebhookCABundle(clientset kubernetes.Interface, caCertPEM []byte, webhookName string) error {
 	patchSet := patch.New(patch.WithAdd("/webhooks/0/clientConfig/caBundle", caCertPEM))
 	patchBytes, err := patchSet.GeneratePayload()
 	if err != nil {

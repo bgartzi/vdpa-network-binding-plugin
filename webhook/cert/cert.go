@@ -17,7 +17,7 @@
  *
  */
 
-package main
+package cert
 
 import (
 	"context"
@@ -48,9 +48,10 @@ type certManager struct {
 	svcName      string
 	svcNamespace string
 	clientset    kubernetes.Interface
+	webhookName  string
 }
 
-func newCertManager(serviceName, serviceNamespace string) (*certManager, error) {
+func NewCertManager(serviceName, serviceNamespace, webhookName string) (*certManager, error) {
 	clusterConfig, err := rest.InClusterConfig()
 	if err != nil {
 		return nil, fmt.Errorf("not running in cluster: %v", err)
@@ -64,6 +65,7 @@ func newCertManager(serviceName, serviceNamespace string) (*certManager, error) 
 		svcName:      serviceName,
 		svcNamespace: serviceNamespace,
 		clientset:    clientset,
+		webhookName:  webhookName,
 	}
 
 	if err := cm.renewCertificates(); err != nil {
@@ -88,7 +90,7 @@ func (cm *certManager) renewCertificates() error {
 
 	cm.mutex.Lock()
 	defer cm.mutex.Unlock()
-	if err := patchWebhookCABundle(cm.clientset, caCertPEM); err != nil {
+	if err := patchWebhookCABundle(cm.clientset, caCertPEM, cm.webhookName); err != nil {
 		return fmt.Errorf("failed to patch caBundle: %v", err)
 	}
 
@@ -110,7 +112,7 @@ func (cm *certManager) nextRenewalDeadline() time.Time {
 
 // Background goroutine: sleep until it's time to renew, then call renewCertificates().
 // If that fails, wait a bit and try again. Stops when the process is shutting down.
-func (cm *certManager) runRenewalLoop(ctx context.Context) {
+func (cm *certManager) RunRenewalLoop(ctx context.Context) {
 	for {
 		deadline := cm.nextRenewalDeadline()
 		timeUntilRenewal := time.Until(deadline)
