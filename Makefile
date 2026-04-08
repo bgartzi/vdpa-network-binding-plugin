@@ -67,6 +67,15 @@ manifest_webhook:
 manifest_sidecar:
 	@sed -e "s|VDPA_SIDECAR_MANIFEST_TEMPLATE_IMAGE|$(IMAGE_REGISTRY)/$(SIDECAR_NAME):$(IMAGE_TAG)|g" $(SIDECAR_MANIFEST_TEMPLATE_PATH) > $(SIDECAR_MANIFEST_PATH)
 
+sync: sync_webhook sync_sidecar
+
+sync_webhook: manifest_webhook
+	kubectl apply -f $(WEBHOOK_MANIFEST_PATH)
+
+sync_sidecar: manifest_sidecar
+	kubectl patch -n kubevirt kubevirts kubevirt --type merge --patch-file $(SIDECAR_MANIFEST_PATH)
+
 .PHONY: build build_sidecar build_admission_webhook clean format format_inplace \
 	lint test test_sidecar test_webhook images image_sidecar image_webhook \
-	push push_sidecar push_webhook manifests manifest_webhook manifest_sidecar
+	push push_sidecar push_webhook manifests manifest_webhook manifest_sidecar \
+	sync sync_webhook sync_sidecar
