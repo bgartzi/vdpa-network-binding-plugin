@@ -30,13 +30,13 @@ import (
 
 	"kubevirt.io/kubevirt/pkg/hooks"
 	hooksInfo "kubevirt.io/kubevirt/pkg/hooks/info"
-	hooksV1alpha2 "kubevirt.io/kubevirt/pkg/hooks/v1alpha2"
+	hooksV1alpha3 "kubevirt.io/kubevirt/pkg/hooks/v1alpha3"
 
 	"kubevirt.io/client-go/log"
 )
 
 const hookSocket = "vdpa.sock"
-const sidecarAPIVersion = "v1alpha2"
+const sidecarAPIVersion = "v1alpha3"
 const sidecarName = "vdpa-network-binding-sidecar"
 
 func main() {
@@ -52,8 +52,10 @@ func main() {
 
 	server := grpc.NewServer([]grpc.ServerOption{}...)
 	hooksInfo.RegisterInfoServer(server, srv.InfoServer{Version: sidecarAPIVersion})
-	hooksV1alpha2.RegisterCallbacksServer(server, srv.V1alpha2Server{})
+
+	shutdownChan := make(chan struct{})
+	hooksV1alpha3.RegisterCallbacksServer(server, srv.V1alpha3Server{Done: shutdownChan})
 
 	log.Log.Infof("Starting vdpa hook server exposing services on socket %q using API version %s", socketPath, sidecarAPIVersion)
-	server.Serve(socket)
+	srv.Serve(server, socket, shutdownChan)
 }
