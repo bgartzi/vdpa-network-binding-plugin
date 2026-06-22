@@ -7,16 +7,21 @@ replace (
 	k8s.io/apimachinery => k8s.io/apimachinery v0.34.2
 	k8s.io/client-go => k8s.io/client-go v0.34.2
 	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20250710124328-f3f2b991d03b
+	k8s.io/kubelet => k8s.io/kubelet v0.34.2
 )
 
 require (
+	github.com/containernetworking/cni v1.2.3
+	github.com/containernetworking/plugins v1.5.1
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.7
 	github.com/onsi/ginkgo/v2 v2.28.1
 	github.com/onsi/gomega v1.39.1
+	github.com/vishvananda/netlink v1.3.0
 	google.golang.org/grpc v1.80.0
 	k8s.io/api v0.34.3
 	k8s.io/apimachinery v0.35.3
 	k8s.io/client-go v12.0.0+incompatible
+	k8s.io/kubelet v0.34.2
 	kubevirt.io/api v1.8.1
 	kubevirt.io/client-go v1.8.1
 	kubevirt.io/kubevirt v1.8.1
@@ -56,6 +61,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/openshift/custom-resource-status v1.1.2 // indirect
+	github.com/vishvananda/netns v0.0.4 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	go.uber.org/mock v0.5.1 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
