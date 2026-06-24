@@ -38,7 +38,7 @@ import (
 
 const (
 	vdpaBindingName      = "vdpa"
-	pathMemory           = "/spec/template/spec/domain/memory"
+	pathMemory           = "/spec/domain/memory"
 	pathReservedOverhead = pathMemory + "/reservedOverhead"
 	pathMemLock          = pathReservedOverhead + "/memLock"
 	pathAddedOverhead    = pathReservedOverhead + "/addedOverhead"
@@ -82,17 +82,13 @@ func HandleMutateVDPA(resp http.ResponseWriter, req *http.Request) {
 }
 
 func mutateVM(ar *admissionv1.AdmissionReview) *admissionv1.AdmissionResponse {
-	vm := &v1.VirtualMachine{}
+	vm := &v1.VirtualMachineInstance{}
 	if err := json.Unmarshal(ar.Request.Object.Raw, vm); err != nil {
 		log.Log.Reason(err).Error("Failed to unmarshal VM from AdmissionReview")
 		return allowWithoutPatch()
 	}
 
-	if vm.Spec.Template == nil {
-		return allowWithoutPatch()
-	}
-
-	vmSpec := &vm.Spec.Template.Spec
+	vmSpec := &vm.Spec
 	vdpaCount := countVDPAInterfaces(vmSpec.Domain.Devices.Interfaces)
 	if vdpaCount == 0 {
 		log.Log.V(4).Infof("VM %s/%s has no vDPA interfaces, skipping mutation", ar.Request.Namespace, ar.Request.Name)
