@@ -520,6 +520,7 @@ k8s.io/apimachinery/pkg/util/managedfields/internal
 k8s.io/apimachinery/pkg/util/mergepatch
 k8s.io/apimachinery/pkg/util/naming
 k8s.io/apimachinery/pkg/util/net
+k8s.io/apimachinery/pkg/util/rand
 k8s.io/apimachinery/pkg/util/runtime
 k8s.io/apimachinery/pkg/util/sets
 k8s.io/apimachinery/pkg/util/strategicpatch
@@ -704,6 +705,7 @@ k8s.io/utils/pointer
 k8s.io/utils/ptr
 # kubevirt.io/api v1.8.1
 ## explicit; go 1.24.0
+kubevirt.io/api
 kubevirt.io/api/backup
 kubevirt.io/api/backup/v1alpha1
 kubevirt.io/api/clone
@@ -783,9 +785,12 @@ kubevirt.io/kubevirt/pkg/hooks/info
 kubevirt.io/kubevirt/pkg/hooks/v1alpha1
 kubevirt.io/kubevirt/pkg/hooks/v1alpha2
 kubevirt.io/kubevirt/pkg/hooks/v1alpha3
+kubevirt.io/kubevirt/pkg/libvmi
+kubevirt.io/kubevirt/pkg/libvmi/cloudinit
 kubevirt.io/kubevirt/pkg/network/downwardapi
 kubevirt.io/kubevirt/pkg/network/namescheme
 kubevirt.io/kubevirt/pkg/network/vmispec
+kubevirt.io/kubevirt/pkg/pointer
 kubevirt.io/kubevirt/pkg/safepath
 kubevirt.io/kubevirt/pkg/unsafepath
 kubevirt.io/kubevirt/pkg/util
