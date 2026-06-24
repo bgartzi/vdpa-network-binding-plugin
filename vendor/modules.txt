@@ -800,6 +800,9 @@ kubevirt.io/kubevirt/pkg/util/net/grpc
 kubevirt.io/kubevirt/pkg/virt-launcher/virtwrap/api
 kubevirt.io/kubevirt/pkg/virt-launcher/virtwrap/api/arch-defaulter
 kubevirt.io/kubevirt/pkg/virt-launcher/virtwrap/device
+kubevirt.io/kubevirt/tests/containerdisk
+kubevirt.io/kubevirt/tests/flags
+kubevirt.io/kubevirt/tests/libvmifact
 # sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730
 ## explicit; go 1.23
 sigs.k8s.io/json
