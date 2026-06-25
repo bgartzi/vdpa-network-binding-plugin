@@ -273,6 +273,8 @@ github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring
 github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1
 # github.com/prometheus/client_golang v1.22.0
 ## explicit; go 1.22
+github.com/prometheus/client_golang/api
+github.com/prometheus/client_golang/api/prometheus/v1
 github.com/prometheus/client_golang/prometheus
 github.com/prometheus/client_golang/prometheus/internal
 # github.com/prometheus/client_model v0.6.1
@@ -287,6 +289,10 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
+# github.com/rhobs/operator-observability-toolkit v0.0.30
+## explicit; go 1.21
+github.com/rhobs/operator-observability-toolkit/pkg/operatormetrics
+github.com/rhobs/operator-observability-toolkit/pkg/operatorrules
 # github.com/sirupsen/logrus v1.9.3
 ## explicit; go 1.13
 github.com/sirupsen/logrus
@@ -919,6 +925,7 @@ k8s.io/client-go/tools/leaderelection
 k8s.io/client-go/tools/leaderelection/resourcelock
 k8s.io/client-go/tools/metrics
 k8s.io/client-go/tools/pager
+k8s.io/client-go/tools/portforward
 k8s.io/client-go/tools/record
 k8s.io/client-go/tools/record/util
 k8s.io/client-go/tools/reference
@@ -1087,13 +1094,34 @@ kubevirt.io/kubevirt/pkg/hypervisor/common
 kubevirt.io/kubevirt/pkg/hypervisor/kvm
 kubevirt.io/kubevirt/pkg/hypervisor/mshv
 kubevirt.io/kubevirt/pkg/ignition
+kubevirt.io/kubevirt/pkg/instancetype/apply
+kubevirt.io/kubevirt/pkg/instancetype/compatibility
+kubevirt.io/kubevirt/pkg/instancetype/conflict
+kubevirt.io/kubevirt/pkg/instancetype/find
+kubevirt.io/kubevirt/pkg/instancetype/preference/apply
+kubevirt.io/kubevirt/pkg/instancetype/preference/find
 kubevirt.io/kubevirt/pkg/libdv
 kubevirt.io/kubevirt/pkg/libvmi
 kubevirt.io/kubevirt/pkg/libvmi/cloudinit
+kubevirt.io/kubevirt/pkg/monitoring/metrics/common/client
+kubevirt.io/kubevirt/pkg/monitoring/metrics/common/labels
+kubevirt.io/kubevirt/pkg/monitoring/metrics/common/workqueue
+kubevirt.io/kubevirt/pkg/monitoring/metrics/testing
+kubevirt.io/kubevirt/pkg/monitoring/metrics/virt-api
+kubevirt.io/kubevirt/pkg/monitoring/metrics/virt-controller
+kubevirt.io/kubevirt/pkg/monitoring/metrics/virt-handler
+kubevirt.io/kubevirt/pkg/monitoring/metrics/virt-handler/collector
+kubevirt.io/kubevirt/pkg/monitoring/metrics/virt-handler/domainstats
+kubevirt.io/kubevirt/pkg/monitoring/metrics/virt-handler/migrationdomainstats
+kubevirt.io/kubevirt/pkg/monitoring/metrics/virt-operator
+kubevirt.io/kubevirt/pkg/monitoring/rules
+kubevirt.io/kubevirt/pkg/monitoring/rules/alerts
+kubevirt.io/kubevirt/pkg/monitoring/rules/recordingrules
 kubevirt.io/kubevirt/pkg/network/downwardapi
 kubevirt.io/kubevirt/pkg/network/istio
 kubevirt.io/kubevirt/pkg/network/multus
 kubevirt.io/kubevirt/pkg/network/namescheme
+kubevirt.io/kubevirt/pkg/network/resources
 kubevirt.io/kubevirt/pkg/network/vmispec
 kubevirt.io/kubevirt/pkg/os/disk
 kubevirt.io/kubevirt/pkg/pointer
@@ -1115,6 +1143,7 @@ kubevirt.io/kubevirt/pkg/util/nodes
 kubevirt.io/kubevirt/pkg/util/tls
 kubevirt.io/kubevirt/pkg/virt-config
 kubevirt.io/kubevirt/pkg/virt-config/featuregate
+kubevirt.io/kubevirt/pkg/virt-controller/leaderelectionconfig
 kubevirt.io/kubevirt/pkg/virt-controller/services
 kubevirt.io/kubevirt/pkg/virt-controller/watch/descheduler
 kubevirt.io/kubevirt/pkg/virt-controller/watch/topology
@@ -1152,9 +1181,14 @@ kubevirt.io/kubevirt/tests/framework/cleanup
 kubevirt.io/kubevirt/tests/framework/kubevirt
 kubevirt.io/kubevirt/tests/framework/matcher
 kubevirt.io/kubevirt/tests/framework/matcher/helper
+kubevirt.io/kubevirt/tests/libinfra
 kubevirt.io/kubevirt/tests/libkubevirt
+kubevirt.io/kubevirt/tests/libkubevirt/config
+kubevirt.io/kubevirt/tests/libmigration
+kubevirt.io/kubevirt/tests/libmonitoring
 kubevirt.io/kubevirt/tests/libnamespace
 kubevirt.io/kubevirt/tests/libnode
+kubevirt.io/kubevirt/tests/libpod
 kubevirt.io/kubevirt/tests/libregistry
 kubevirt.io/kubevirt/tests/libsecret
 kubevirt.io/kubevirt/tests/libstorage
@@ -1163,6 +1197,9 @@ kubevirt.io/kubevirt/tests/libvmops
 kubevirt.io/kubevirt/tests/libwait
 kubevirt.io/kubevirt/tests/testsuite
 kubevirt.io/kubevirt/tests/watcher
+# libvirt.org/go/libvirtxml v1.11000.1
+## explicit; go 1.11
+libvirt.org/go/libvirtxml
 # sigs.k8s.io/controller-runtime v0.22.4
 ## explicit; go 1.24.0
 sigs.k8s.io/controller-runtime/pkg/controller/priorityqueue
