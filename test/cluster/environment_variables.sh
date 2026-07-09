@@ -3,7 +3,7 @@ CURRENT_DIR="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 source ${CURRENT_DIR}/with_kubevirtci.sh
 
 export KUBEVIRT_PROVIDER=${KUBEVIRT_PROVIDER:-"k8s-1.35"}
-export KUBEVIRT_NUM_NODES=${KUBEVIRT_NUM_NODES:-"2"}
+export KUBEVIRT_NUM_NODES=${KUBEVIRT_NUM_NODES:-"3"}
 export KUBEVIRT_WITH_MULTUS=true
 export KUBEVIRT_DEPLOY_NETWORK_RESOURCES_INJECTOR=true
 if [ -z ${KUBEVIRTCI_TAG} ]; then
