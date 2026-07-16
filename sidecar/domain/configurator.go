@@ -196,6 +196,15 @@ func (p VdpaNetworkConfigurator) generateInterfaces() ([]*domainschema.Interface
 			acpi = &domainschema.ACPI{Index: uint(cfg.vmiSpecIface.ACPIIndex)}
 		}
 
+		var driver *domainschema.InterfaceDriver
+		maxVirtQueues := uint(cfg.DeviceInfo.Vdpa.MaxVQP)
+		if maxVirtQueues > 0 {
+			driver = &domainschema.InterfaceDriver{
+				Name:   "vhost",
+				Queues: &maxVirtQueues,
+			}
+		}
+
 		vdpaPath := symlink.SharedComputeSymlinkPath(p.containerName, cfg.symlinkName)
 
 		domainInterfaces = append(domainInterfaces, &domainschema.Interface{
@@ -206,6 +215,7 @@ func (p VdpaNetworkConfigurator) generateInterfaces() ([]*domainschema.Interface
 			ACPI:    acpi,
 			Type:    "vdpa",
 			Source:  domainschema.InterfaceSource{Device: vdpaPath},
+			Driver:  driver,
 		})
 	}
 

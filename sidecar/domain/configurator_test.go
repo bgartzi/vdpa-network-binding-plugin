@@ -46,7 +46,10 @@ var DEFAULT_SYMLINK_DIR = path.Join(
 	DEFAULT_CONT_NAME,
 )
 
-func newNetInfo(networkName, vdpaPath, mac string) *downwardapi.NetworkInfo {
+var DEFAULT_MAX_VQP_EMPTY uint16 = 0
+var MOD_MAX_VQP uint = 64
+
+func newNetInfo(networkName, vdpaPath, mac string, maxVQP uint16) *downwardapi.NetworkInfo {
 	return &downwardapi.NetworkInfo{
 		Interfaces: []downwardapi.Interface{
 			{
@@ -54,7 +57,7 @@ func newNetInfo(networkName, vdpaPath, mac string) *downwardapi.NetworkInfo {
 				Mac:     mac,
 				DeviceInfo: &networkv1.DeviceInfo{
 					Type: networkv1.DeviceInfoTypeVDPA,
-					Vdpa: &networkv1.VdpaDevice{Path: vdpaPath},
+					Vdpa: &networkv1.VdpaDevice{Path: vdpaPath, MaxVQP: maxVQP},
 				},
 			},
 		},
@@ -104,7 +107,7 @@ var _ = Describe("pod network configurator", func() {
 			networks := []vmschema.Network{{Name: "invalid-pci", NetworkSource: vmschema.NetworkSource{Multus: &vmschema.MultusNetwork{}}}}
 			// netInfo is only required so NewVdpaNetworkConfigurator can pair the vDPA iface;
 			// this test validates guest PCI address parsing, not host VF's PCI address.
-			netInfo := newNetInfo("invalid-pci", "/dev/vhost-vdpa-0", "")
+			netInfo := newNetInfo("invalid-pci", "/dev/vhost-vdpa-0", "", 0)
 
 			testMutator, err := domain.NewVdpaNetworkConfigurator(ifaces, networks, netInfo, DEFAULT_CONT_NAME)
 			Expect(err).ToNot(HaveOccurred())
@@ -114,10 +117,10 @@ var _ = Describe("pod network configurator", func() {
 		})
 
 		DescribeTable("should add interface to domain spec given iface with",
-			func(iface *vmschema.Interface, expectedDomainIface *domainschema.Interface, macFromDeviceInfo string) {
+			func(iface *vmschema.Interface, expectedDomainIface *domainschema.Interface, macFromDeviceInfo string, deviceInfoMaxVQPs uint16) {
 				ifaces := []vmschema.Interface{*iface}
 				networks := []vmschema.Network{{Name: iface.Name, NetworkSource: vmschema.NetworkSource{Multus: &vmschema.MultusNetwork{}}}}
-				netInfo := newNetInfo(iface.Name, "/dev/vhost-vdpa-0", macFromDeviceInfo)
+				netInfo := newNetInfo(iface.Name, "/dev/vhost-vdpa-0", macFromDeviceInfo, deviceInfoMaxVQPs)
 
 				testMutator, err := domain.NewVdpaNetworkConfigurator(ifaces, networks, netInfo, DEFAULT_CONT_NAME)
 				Expect(err).ToNot(HaveOccurred())
@@ -136,6 +139,7 @@ var _ = Describe("pod network configurator", func() {
 					MAC:    nil,
 				},
 				"",
+				DEFAULT_MAX_VQP_EMPTY,
 			),
 			Entry("PCI address",
 				&vmschema.Interface{Name: "vdpa-with-pci", Binding: &vmschema.PluginBinding{Name: "vdpa"},
@@ -149,6 +153,7 @@ var _ = Describe("pod network configurator", func() {
 					MAC:     nil,
 				},
 				"",
+				DEFAULT_MAX_VQP_EMPTY,
 			),
 			Entry("MAC address",
 				&vmschema.Interface{Name: "vdpa-with-mac", Binding: &vmschema.PluginBinding{Name: "vdpa"},
@@ -161,6 +166,7 @@ var _ = Describe("pod network configurator", func() {
 					MAC:    &domainschema.MAC{MAC: "02:02:02:02:02:02"},
 				},
 				"",
+				DEFAULT_MAX_VQP_EMPTY,
 			),
 			Entry("ACPI address",
 				&vmschema.Interface{Name: "vdpa-with-acpi", Binding: &vmschema.PluginBinding{Name: "vdpa"},
@@ -173,6 +179,7 @@ var _ = Describe("pod network configurator", func() {
 					ACPI:   &domainschema.ACPI{Index: uint(2)},
 				},
 				"",
+				DEFAULT_MAX_VQP_EMPTY,
 			),
 			Entry("MAC address from deviceinfo",
 				&vmschema.Interface{Name: "deviceinfo-mac", Binding: &vmschema.PluginBinding{Name: "vdpa"}},
@@ -184,6 +191,7 @@ var _ = Describe("pod network configurator", func() {
 					MAC:    &domainschema.MAC{MAC: "de:ad:00:00:be:af"},
 				},
 				"de:ad:00:00:be:af",
+				DEFAULT_MAX_VQP_EMPTY,
 			),
 			Entry("VMI MAC should override DeviceInfo MAC",
 				&vmschema.Interface{Name: "mac-override", Binding: &vmschema.PluginBinding{Name: "vdpa"},
@@ -197,6 +205,19 @@ var _ = Describe("pod network configurator", func() {
 					MAC:    &domainschema.MAC{MAC: "02:02:02:02:02:02"},
 				},
 				"de:ad:00:00:be:af",
+				DEFAULT_MAX_VQP_EMPTY,
+			),
+			Entry("MAX virtqueue pairs exposed in deviceinfo",
+				&vmschema.Interface{Name: "deviceinfo-maxvqps", Binding: &vmschema.PluginBinding{Name: "vdpa"}},
+				&domainschema.Interface{
+					Alias:  domainschema.NewUserDefinedAlias("deviceinfo-maxvqps"),
+					Type:   "vdpa",
+					Source: domainschema.InterfaceSource{Device: slPath("deviceinfo-maxvqps")},
+					Model:  &domainschema.Model{Type: "virtio"},
+					Driver: &domainschema.InterfaceDriver{Queues: &MOD_MAX_VQP},
+				},
+				"",
+				uint16(MOD_MAX_VQP),
 			),
 		)
 
@@ -209,7 +230,7 @@ var _ = Describe("pod network configurator", func() {
 				{Name: "vdpa-iface", NetworkSource: vmschema.NetworkSource{Multus: &vmschema.MultusNetwork{}}},
 				{Name: "bridge-iface", NetworkSource: vmschema.NetworkSource{Multus: &vmschema.MultusNetwork{}}},
 			}
-			netInfo := newNetInfo("vdpa-iface", "/dev/vhost-vdpa-0", "")
+			netInfo := newNetInfo("vdpa-iface", "/dev/vhost-vdpa-0", "", 0)
 
 			expectedDomainIface := &domainschema.Interface{
 				Alias:  domainschema.NewUserDefinedAlias("vdpa-iface"),
@@ -234,7 +255,7 @@ var _ = Describe("pod network configurator", func() {
 		It("should set domain interface correctly when executed more than once", func() {
 			ifaces := []vmschema.Interface{{Name: "vdpa-idempotent", Binding: &vmschema.PluginBinding{Name: "vdpa"}}}
 			networks := []vmschema.Network{{Name: "vdpa-idempotent", NetworkSource: vmschema.NetworkSource{Multus: &vmschema.MultusNetwork{}}}}
-			netInfo := newNetInfo("vdpa-idempotent", "/dev/vhost-vdpa-0", "")
+			netInfo := newNetInfo("vdpa-idempotent", "/dev/vhost-vdpa-0", "", 0)
 
 			expectedDomainIface := &domainschema.Interface{
 				Alias:  domainschema.NewUserDefinedAlias("vdpa-idempotent"),
@@ -323,7 +344,7 @@ var _ = Describe("pod network configurator", func() {
 				{Name: "vdpa-net-2", NetworkSource: vmschema.NetworkSource{Multus: &vmschema.MultusNetwork{}}},
 			}
 
-			netInfo := newNetInfo("vdpa-net-1", "/dev/vhost-vdpa-0", "")
+			netInfo := newNetInfo("vdpa-net-1", "/dev/vhost-vdpa-0", "", 0)
 
 			_, err := domain.NewVdpaNetworkConfigurator(ifaces, networks, netInfo, DEFAULT_CONT_NAME)
 			Expect(err).To(HaveOccurred())
@@ -333,7 +354,7 @@ var _ = Describe("pod network configurator", func() {
 			ifaces := []vmschema.Interface{{Name: "vdpa-path-update", Binding: &vmschema.PluginBinding{Name: "vdpa"}}}
 			networks := []vmschema.Network{{Name: "vdpa-path-update", NetworkSource: vmschema.NetworkSource{Multus: &vmschema.MultusNetwork{}}}}
 
-			netInfo1 := newNetInfo("vdpa-path-update", "/dev/vhost-vdpa-1", "")
+			netInfo1 := newNetInfo("vdpa-path-update", "/dev/vhost-vdpa-1", "", 0)
 			expectedDomainIface1 := &domainschema.Interface{
 				Alias:  domainschema.NewUserDefinedAlias("vdpa-path-update"),
 				Type:   "vdpa",
@@ -342,7 +363,7 @@ var _ = Describe("pod network configurator", func() {
 				MAC:    nil,
 			}
 
-			netInfo2 := newNetInfo("vdpa-path-update", "/dev/vhost-vdpa-2", "")
+			netInfo2 := newNetInfo("vdpa-path-update", "/dev/vhost-vdpa-2", "", 0)
 
 			testMutator1, err := domain.NewVdpaNetworkConfigurator(ifaces, networks, netInfo1, DEFAULT_CONT_NAME)
 			Expect(err).ToNot(HaveOccurred())
