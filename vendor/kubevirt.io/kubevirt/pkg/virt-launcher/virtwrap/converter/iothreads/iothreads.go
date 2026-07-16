@@ -45,6 +45,7 @@ func GetIOThreadsCountType(vmi *v1.VirtualMachineInstance) (ioThreadCount, autoT
 
 	if vmi.Spec.Domain.IOThreadsPolicy != nil &&
 		*vmi.Spec.Domain.IOThreadsPolicy == v1.IOThreadsPolicySupplementalPool &&
+		vmi.Spec.Domain.IOThreads != nil &&
 		vmi.Spec.Domain.IOThreads.SupplementalPoolThreadCount != nil {
 		return int(*vmi.Spec.Domain.IOThreads.SupplementalPoolThreadCount), 0
 	}
@@ -96,7 +97,7 @@ func getThreadPoolLimit(vmi *v1.VirtualMachineInstance) int {
 	}
 }
 
-func SupplementalPoolThreadCount(vmi *v1.VirtualMachineInstance) *api.DiskIOThreads {
+func BuildSupplementalPoolIOThreads(vmi *v1.VirtualMachineInstance) *api.DiskIOThreads {
 	if vmi.Spec.Domain.IOThreadsPolicy == nil || *vmi.Spec.Domain.IOThreadsPolicy != v1.IOThreadsPolicySupplementalPool {
 		return nil
 	}
@@ -105,4 +106,12 @@ func SupplementalPoolThreadCount(vmi *v1.VirtualMachineInstance) *api.DiskIOThre
 		iothreads.IOThread = append(iothreads.IOThread, api.DiskIOThread{Id: uint32(id)})
 	}
 	return iothreads
+}
+
+func SupplementalPoolThreadCount(vmi *v1.VirtualMachineInstance) int {
+	if vmi.Spec.Domain.IOThreads == nil || vmi.Spec.Domain.IOThreads.SupplementalPoolThreadCount == nil ||
+		vmi.Spec.Domain.IOThreadsPolicy == nil || *vmi.Spec.Domain.IOThreadsPolicy != v1.IOThreadsPolicySupplementalPool {
+		return 0
+	}
+	return int(*vmi.Spec.Domain.IOThreads.SupplementalPoolThreadCount)
 }

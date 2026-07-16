@@ -30,8 +30,11 @@ func virtControllerAlerts(namespace string) []promv1.Rule {
 	return []promv1.Rule{
 		{
 			Alert: "LowReadyVirtControllersCount",
-			Expr:  intstr.FromString("kubevirt_virt_controller_ready < cluster:kubevirt_virt_controller_pods_running:count"),
-			For:   ptr.To(promv1.Duration("10m")),
+			Expr: intstr.FromString(
+				"cluster:kubevirt_virt_controller_ready:sum < cluster:kubevirt_virt_controller_pods_running:count " +
+					"and cluster:kubevirt_virt_controller_ready:sum > 0",
+			),
+			For: ptr.To(promv1.Duration("10m")),
 			Annotations: map[string]string{
 				summaryAnnotationKey: "Some virt controllers are running but not ready.",
 			},
@@ -42,10 +45,22 @@ func virtControllerAlerts(namespace string) []promv1.Rule {
 		},
 		{
 			Alert: "NoReadyVirtController",
-			Expr:  intstr.FromString("kubevirt_virt_controller_ready == 0"),
+			Expr:  intstr.FromString("cluster:kubevirt_virt_controller_ready:sum == 0"),
 			For:   ptr.To(promv1.Duration("10m")),
 			Annotations: map[string]string{
 				summaryAnnotationKey: "No ready virt-controller was detected for the last 10 min.",
+			},
+			Labels: map[string]string{
+				severityAlertLabelKey:        "critical",
+				operatorHealthImpactLabelKey: "critical",
+			},
+		},
+		{
+			Alert: "NoLeadingVirtController",
+			Expr:  intstr.FromString("cluster:kubevirt_virt_controller_leading:sum == 0"),
+			For:   ptr.To(promv1.Duration("10m")),
+			Annotations: map[string]string{
+				summaryAnnotationKey: "No leading virt-controller was detected for the last 10 min.",
 			},
 			Labels: map[string]string{
 				severityAlertLabelKey:        "critical",
@@ -67,12 +82,13 @@ func virtControllerAlerts(namespace string) []promv1.Rule {
 		{
 			Alert: "LowVirtControllersCount",
 			Expr: intstr.FromString(fmt.Sprintf(
-				"kubevirt_virt_controller_up / on() kube_deployment_spec_replicas{deployment='virt-controller', namespace='%s'} < 0.75",
+				"cluster:kubevirt_virt_controller_pods_running:count / on() "+
+					"kube_deployment_spec_replicas{deployment='virt-controller', namespace='%s'} < 0.75",
 				namespace,
 			)),
 			For: ptr.To(promv1.Duration("10m")),
 			Annotations: map[string]string{
-				summaryAnnotationKey: "Less than 75% of desired virt-controller pods are ready.",
+				summaryAnnotationKey: "Less than 75% of desired virt-controller pods are running.",
 			},
 			Labels: map[string]string{
 				severityAlertLabelKey:        "warning",

@@ -36,7 +36,10 @@ import (
 )
 
 const (
-	KubeVirtFinalizer string = "foregroundDeleteKubeVirt"
+	KubeVirtFinalizer string = "kubevirt.io/foregroundDeleteKubeVirt"
+	// TODO drop the code handling the deprecated finalizer after release
+	// of kubevirt-1.11
+	deprecatedKubeVirtFinalizer string = "foregroundDeleteKubeVirt"
 
 	ConditionReasonDeploymentFailedExisting = "ExistingDeployment"
 	ConditionReasonDeploymentFailedError    = "DeploymentFailed"
@@ -84,7 +87,7 @@ func UpdateConditionsAvailable(kv *virtv1.KubeVirt) {
 
 func UpdateConditionsFailedExists(kv *virtv1.KubeVirt) {
 	updateCondition(kv, virtv1.KubeVirtConditionSynchronized, k8sv1.ConditionFalse, ConditionReasonDeploymentFailedExisting, "There is an active KubeVirt deployment")
-	// don' t set any other conditions here, so HCO just ignores this KubeVirt CR
+	// don't set any other conditions here, so the managing operator just ignores this KubeVirt CR
 }
 
 func UpdateConditionsFailedError(kv *virtv1.KubeVirt, err error) {
@@ -173,19 +176,22 @@ func SetConditionTimestamps(kvOrig *virtv1.KubeVirt, kvUpdated *virtv1.KubeVirt)
 	}
 }
 
-func AddFinalizer(kv *virtv1.KubeVirt) {
-	if !hasFinalizer(kv) {
-		kv.Finalizers = append(kv.Finalizers, KubeVirtFinalizer)
-	}
+func SetFinalizer(kv *virtv1.KubeVirt) {
+	kv.Finalizers = append(withoutKubeVirtFinalizers(kv.Finalizers), KubeVirtFinalizer)
 }
 
-func hasFinalizer(kv *virtv1.KubeVirt) bool {
-	for _, f := range kv.GetFinalizers() {
-		if f == KubeVirtFinalizer {
-			return true
+func UnsetFinalizer(kv *virtv1.KubeVirt) {
+	kv.Finalizers = withoutKubeVirtFinalizers(kv.Finalizers)
+}
+
+func withoutKubeVirtFinalizers(finalizers []string) []string {
+	var result []string
+	for _, f := range finalizers {
+		if f != KubeVirtFinalizer && f != deprecatedKubeVirtFinalizer {
+			result = append(result, f)
 		}
 	}
-	return false
+	return result
 }
 
 func SetOperatorVersion(kv *virtv1.KubeVirt) {
@@ -265,6 +271,25 @@ func IsValidatingAdmissionPolicyEnabled(clientset kubecli.KubevirtClient) (bool,
 		if api.GroupVersion == admissionregistrationv1.SchemeGroupVersion.String() {
 			for _, resource := range api.APIResources {
 				if resource.Name == "validatingadmissionpolicies" {
+					return true, nil
+				}
+			}
+		}
+	}
+
+	return false, nil
+}
+
+func IsMutatingAdmissionPolicyEnabled(clientset kubecli.KubevirtClient) (bool, error) {
+	_, apis, err := clientset.DiscoveryClient().ServerGroupsAndResources()
+	if err != nil && !discovery.IsGroupDiscoveryFailedError(err) {
+		return false, err
+	}
+
+	for _, api := range apis {
+		if api.GroupVersion == "admissionregistration.k8s.io/v1" {
+			for _, resource := range api.APIResources {
+				if resource.Name == "mutatingadmissionpolicies" {
 					return true, nil
 				}
 			}
