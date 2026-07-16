@@ -437,7 +437,7 @@ var _ = Describe("pod network configurator", func() {
 					Mac:     "02:02:02:02:02:02",
 					DeviceInfo: &networkv1.DeviceInfo{
 						Type: networkv1.DeviceInfoTypeVDPA,
-						Vdpa: &networkv1.VdpaDevice{Path: "/dev/vhost-vdpa-0"},
+						Vdpa: &networkv1.VdpaDevice{Path: "/dev/vhost-vdpa-0", MaxVQP: uint16(24)},
 					},
 				}},
 			}
