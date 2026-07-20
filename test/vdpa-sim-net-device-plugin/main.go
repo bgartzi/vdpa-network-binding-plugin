@@ -152,6 +152,10 @@ func createVDPADevices(dpConfig *VdpaSimNetDevicePluginConfiguration) error {
 				devParams.MTU = uint16(*config.MTU)
 			}
 
+			if config.MaxVQP != nil {
+				devParams.MaxVQP = *config.MaxVQP
+			}
+
 			if err := netlink.VDPANewDev(config.Name, "", simnetMgmtdev, devParams); err != nil {
 				return fmt.Errorf("vdpa dev add: %w", err)
 			}
@@ -187,6 +191,13 @@ func createDeviceInfoFiles(resourceName string, devices []*AllocatableVdpaDevice
 
 func discoverAllocatableDevice(vdpaDeviceName string) (*AllocatableVdpaDevice, error) {
 	sysDir := filepath.Join(vdpaSysBusPath, vdpaDeviceName)
+
+	vdpaDev, err := netlink.VDPAGetDevByName(vdpaDeviceName)
+	if err != nil {
+		return nil, err
+	}
+	maxVQs := uint16(vdpaDev.MaxVQS)
+
 	for i := 0; i < 10; i++ {
 		entries, err := os.ReadDir(sysDir)
 		if err != nil {
@@ -197,8 +208,9 @@ func discoverAllocatableDevice(vdpaDeviceName string) (*AllocatableVdpaDevice, e
 				devPath := filepath.Join("/dev", e.Name())
 				if _, err := os.Stat(devPath); err == nil {
 					return &AllocatableVdpaDevice{
-						Name: vdpaDeviceName,
-						Path: devPath,
+						Name:   vdpaDeviceName,
+						Path:   devPath,
+						MaxVQP: &maxVQs,
 					}, nil
 				}
 			}
@@ -216,6 +228,7 @@ func createDeviceInfo(resourceName string, device *AllocatableVdpaDevice) error 
 			Path:         device.Path,
 			ParentDevice: simnetMgmtdev,
 			Driver:       "vhost",
+			MaxVQP:       *device.MaxVQP,
 		},
 	}
 
