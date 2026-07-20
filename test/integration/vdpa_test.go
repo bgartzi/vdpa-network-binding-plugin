@@ -48,7 +48,7 @@ var _ = Describe("guest with vdpa interfaces", func() {
 					libvmi.WithNamespace(vdpaTestNamespace),
 					libvmi.WithName(vmiName),
 				)
-				vmi = libvmops.RunVMIAndExpectLaunch(vmi, libvmops.StartupTimeoutSecondsSmall)
+				vmi = libvmops.RunVMIAndExpectLaunch(vmi, flags.StartupTimeoutSecondsSmall())
 
 				By("logging in")
 				Expect(console.LoginToAlpine(vmi)).To(Succeed())
@@ -77,7 +77,7 @@ var _ = Describe("guest with vdpa interfaces", func() {
 				libvmi.WithNamespace(vdpaTestNamespace),
 				libvmi.WithName(vmiName),
 			)
-			vmi = libvmops.RunVMIAndExpectLaunch(vmi, libvmops.StartupTimeoutSecondsSmall)
+			vmi = libvmops.RunVMIAndExpectLaunch(vmi, flags.StartupTimeoutSecondsSmall())
 
 			By("VM booted in src")
 			Expect(console.LoginToAlpine(vmi)).To(Succeed())

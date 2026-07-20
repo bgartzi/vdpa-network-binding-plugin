@@ -19,8 +19,8 @@ import (
 	"kubevirt.io/kubevirt/pkg/libvmi"
 	fg "kubevirt.io/kubevirt/pkg/virt-config/featuregate"
 	"kubevirt.io/kubevirt/tests/console"
+	"kubevirt.io/kubevirt/tests/flags"
 	"kubevirt.io/kubevirt/tests/libvmifact"
-	"kubevirt.io/kubevirt/tests/libvmops"
 	"kubevirt.io/kubevirt/tests/libwait"
 
 	g "github.com/onsi/gomega"
@@ -140,7 +140,7 @@ func guestNetDevNames(vmi *v1.VirtualMachineInstance) []string {
 	netDevStr, err := console.RunCommandAndStoreOutput(
 		vmi,
 		fmt.Sprintf("ls --color=never %s", sysNetPath),
-		libvmops.StartupTimeoutSecondsTiny*time.Second,
+		time.Duration(flags.StartupTimeoutSecondsTiny())*time.Second,
 	)
 	g.Expect(err).To(g.BeNil())
 	return strings.Fields(netDevStr)
@@ -156,7 +156,7 @@ func guestNetDevMacAddress(vmi *v1.VirtualMachineInstance, iface string) string 
 	macAddr, err := console.RunCommandAndStoreOutput(
 		vmi,
 		fmt.Sprintf("cat %s", filepath.Join(sysNetPath, iface, "address")),
-		libvmops.StartupTimeoutSecondsTiny*time.Second,
+		time.Duration(flags.StartupTimeoutSecondsTiny())*time.Second,
 	)
 	g.Expect(err).To(g.BeNil())
 	return strings.TrimSpace(macAddr)
