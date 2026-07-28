@@ -35,8 +35,10 @@ import (
 
 	"kubevirt.io/vdpa-network-binding-plugin/sidecar/domain"
 
+	"libvirt.org/go/libvirtxml"
+
 	"kubevirt.io/kubevirt/pkg/network/downwardapi"
-	domainschema "kubevirt.io/kubevirt/pkg/virt-launcher/virtwrap/api"
+	"kubevirt.io/kubevirt/pkg/pointer"
 )
 
 const DEFAULT_CONT_NAME = "containername"
@@ -112,12 +114,12 @@ var _ = Describe("pod network configurator", func() {
 			testMutator, err := domain.NewVdpaNetworkConfigurator(ifaces, networks, netInfo, DEFAULT_CONT_NAME)
 			Expect(err).ToNot(HaveOccurred())
 
-			_, err = testMutator.Mutate(&domainschema.DomainSpec{})
+			_, err = testMutator.Mutate(&libvirtxml.Domain{})
 			Expect(err).To(HaveOccurred())
 		})
 
 		DescribeTable("should add interface to domain spec given iface with",
-			func(iface *vmschema.Interface, expectedDomainIface *domainschema.Interface, macFromDeviceInfo string, deviceInfoMaxVQPs uint16) {
+			func(iface *vmschema.Interface, expectedDomainIface *libvirtxml.DomainInterface, macFromDeviceInfo string, deviceInfoMaxVQPs uint16) {
 				ifaces := []vmschema.Interface{*iface}
 				networks := []vmschema.Network{{Name: iface.Name, NetworkSource: vmschema.NetworkSource{Multus: &vmschema.MultusNetwork{}}}}
 				netInfo := newNetInfo(iface.Name, "/dev/vhost-vdpa-0", macFromDeviceInfo, deviceInfoMaxVQPs)
@@ -125,18 +127,21 @@ var _ = Describe("pod network configurator", func() {
 				testMutator, err := domain.NewVdpaNetworkConfigurator(ifaces, networks, netInfo, DEFAULT_CONT_NAME)
 				Expect(err).ToNot(HaveOccurred())
 
-				mutatedDomSpec, err := testMutator.Mutate(&domainschema.DomainSpec{})
+				mutatedDomSpec, err := testMutator.Mutate(&libvirtxml.Domain{})
 				Expect(err).ToNot(HaveOccurred())
-				Expect(mutatedDomSpec.Devices.Interfaces).To(Equal([]domainschema.Interface{*expectedDomainIface}))
+				Expect(mutatedDomSpec.Devices.Interfaces).To(Equal([]libvirtxml.DomainInterface{*expectedDomainIface}))
 			},
 			Entry("vdpa binding plugin",
 				&vmschema.Interface{Name: "vdpa-minimal", Binding: &vmschema.PluginBinding{Name: "vdpa"}},
-				&domainschema.Interface{
-					Alias:  domainschema.NewUserDefinedAlias("vdpa-minimal"),
-					Type:   "vdpa",
-					Source: domainschema.InterfaceSource{Device: slPath("vdpa-minimal")},
-					Model:  &domainschema.Model{Type: "virtio"},
-					MAC:    nil,
+				&libvirtxml.DomainInterface{
+					Alias: &libvirtxml.DomainAlias{Name: "vdpa-minimal"},
+					Source: &libvirtxml.DomainInterfaceSource{
+						VDPA: &libvirtxml.DomainInterfaceSourceVDPA{
+							Device: slPath("vdpa-minimal"),
+						},
+					},
+					MAC:   nil,
+					Model: &libvirtxml.DomainInterfaceModel{Type: "virtio"},
 				},
 				"",
 				DEFAULT_MAX_VQP_EMPTY,
@@ -144,13 +149,23 @@ var _ = Describe("pod network configurator", func() {
 			Entry("PCI address",
 				&vmschema.Interface{Name: "vdpa-with-pci", Binding: &vmschema.PluginBinding{Name: "vdpa"},
 					PciAddress: "0000:02:02.0"},
-				&domainschema.Interface{
-					Alias:   domainschema.NewUserDefinedAlias("vdpa-with-pci"),
-					Type:    "vdpa",
-					Source:  domainschema.InterfaceSource{Device: slPath("vdpa-with-pci")},
-					Model:   &domainschema.Model{Type: "virtio"},
-					Address: &domainschema.Address{Type: "pci", Domain: "0x0000", Bus: "0x02", Slot: "0x02", Function: "0x0"},
-					MAC:     nil,
+				&libvirtxml.DomainInterface{
+					Alias: &libvirtxml.DomainAlias{Name: "vdpa-with-pci"},
+					Source: &libvirtxml.DomainInterfaceSource{
+						VDPA: &libvirtxml.DomainInterfaceSourceVDPA{
+							Device: slPath("vdpa-with-pci"),
+						},
+					},
+					Model: &libvirtxml.DomainInterfaceModel{Type: "virtio"},
+					Address: &libvirtxml.DomainAddress{
+						PCI: &libvirtxml.DomainAddressPCI{
+							Domain:   pointer.P(uint(0)),
+							Bus:      pointer.P(uint(2)),
+							Slot:     pointer.P(uint(2)),
+							Function: pointer.P(uint(0)),
+						},
+					},
+					MAC: nil,
 				},
 				"",
 				DEFAULT_MAX_VQP_EMPTY,
@@ -158,12 +173,15 @@ var _ = Describe("pod network configurator", func() {
 			Entry("MAC address",
 				&vmschema.Interface{Name: "vdpa-with-mac", Binding: &vmschema.PluginBinding{Name: "vdpa"},
 					MacAddress: "02:02:02:02:02:02"},
-				&domainschema.Interface{
-					Alias:  domainschema.NewUserDefinedAlias("vdpa-with-mac"),
-					Type:   "vdpa",
-					Source: domainschema.InterfaceSource{Device: slPath("vdpa-with-mac")},
-					Model:  &domainschema.Model{Type: "virtio"},
-					MAC:    &domainschema.MAC{MAC: "02:02:02:02:02:02"},
+				&libvirtxml.DomainInterface{
+					Alias: &libvirtxml.DomainAlias{Name: "vdpa-with-mac"},
+					Source: &libvirtxml.DomainInterfaceSource{
+						VDPA: &libvirtxml.DomainInterfaceSourceVDPA{
+							Device: slPath("vdpa-with-mac"),
+						},
+					},
+					Model: &libvirtxml.DomainInterfaceModel{Type: "virtio"},
+					MAC:   &libvirtxml.DomainInterfaceMAC{Address: "02:02:02:02:02:02"},
 				},
 				"",
 				DEFAULT_MAX_VQP_EMPTY,
@@ -171,24 +189,30 @@ var _ = Describe("pod network configurator", func() {
 			Entry("ACPI address",
 				&vmschema.Interface{Name: "vdpa-with-acpi", Binding: &vmschema.PluginBinding{Name: "vdpa"},
 					ACPIIndex: 2},
-				&domainschema.Interface{
-					Alias:  domainschema.NewUserDefinedAlias("vdpa-with-acpi"),
-					Type:   "vdpa",
-					Source: domainschema.InterfaceSource{Device: slPath("vdpa-with-acpi")},
-					Model:  &domainschema.Model{Type: "virtio"},
-					ACPI:   &domainschema.ACPI{Index: uint(2)},
+				&libvirtxml.DomainInterface{
+					Alias: &libvirtxml.DomainAlias{Name: "vdpa-with-acpi"},
+					Source: &libvirtxml.DomainInterfaceSource{
+						VDPA: &libvirtxml.DomainInterfaceSourceVDPA{
+							Device: slPath("vdpa-with-acpi"),
+						},
+					},
+					Model: &libvirtxml.DomainInterfaceModel{Type: "virtio"},
+					ACPI:  &libvirtxml.DomainDeviceACPI{Index: uint(2)},
 				},
 				"",
 				DEFAULT_MAX_VQP_EMPTY,
 			),
 			Entry("MAC address from deviceinfo",
 				&vmschema.Interface{Name: "deviceinfo-mac", Binding: &vmschema.PluginBinding{Name: "vdpa"}},
-				&domainschema.Interface{
-					Alias:  domainschema.NewUserDefinedAlias("deviceinfo-mac"),
-					Type:   "vdpa",
-					Source: domainschema.InterfaceSource{Device: slPath("deviceinfo-mac")},
-					Model:  &domainschema.Model{Type: "virtio"},
-					MAC:    &domainschema.MAC{MAC: "de:ad:00:00:be:af"},
+				&libvirtxml.DomainInterface{
+					Alias: &libvirtxml.DomainAlias{Name: "deviceinfo-mac"},
+					Source: &libvirtxml.DomainInterfaceSource{
+						VDPA: &libvirtxml.DomainInterfaceSourceVDPA{
+							Device: slPath("deviceinfo-mac"),
+						},
+					},
+					Model: &libvirtxml.DomainInterfaceModel{Type: "virtio"},
+					MAC:   &libvirtxml.DomainInterfaceMAC{Address: "de:ad:00:00:be:af"},
 				},
 				"de:ad:00:00:be:af",
 				DEFAULT_MAX_VQP_EMPTY,
@@ -197,24 +221,33 @@ var _ = Describe("pod network configurator", func() {
 				&vmschema.Interface{Name: "mac-override", Binding: &vmschema.PluginBinding{Name: "vdpa"},
 					MacAddress: "02:02:02:02:02:02",
 				},
-				&domainschema.Interface{
-					Alias:  domainschema.NewUserDefinedAlias("mac-override"),
-					Type:   "vdpa",
-					Source: domainschema.InterfaceSource{Device: slPath("mac-override")},
-					Model:  &domainschema.Model{Type: "virtio"},
-					MAC:    &domainschema.MAC{MAC: "02:02:02:02:02:02"},
+				&libvirtxml.DomainInterface{
+					Alias: &libvirtxml.DomainAlias{Name: "mac-override"},
+					Source: &libvirtxml.DomainInterfaceSource{
+						VDPA: &libvirtxml.DomainInterfaceSourceVDPA{
+							Device: slPath("mac-override"),
+						},
+					},
+					Model: &libvirtxml.DomainInterfaceModel{Type: "virtio"},
+					MAC:   &libvirtxml.DomainInterfaceMAC{Address: "02:02:02:02:02:02"},
 				},
 				"de:ad:00:00:be:af",
 				DEFAULT_MAX_VQP_EMPTY,
 			),
 			Entry("MAX virtqueue pairs exposed in deviceinfo",
 				&vmschema.Interface{Name: "deviceinfo-maxvqps", Binding: &vmschema.PluginBinding{Name: "vdpa"}},
-				&domainschema.Interface{
-					Alias:  domainschema.NewUserDefinedAlias("deviceinfo-maxvqps"),
-					Type:   "vdpa",
-					Source: domainschema.InterfaceSource{Device: slPath("deviceinfo-maxvqps")},
-					Model:  &domainschema.Model{Type: "virtio"},
-					Driver: &domainschema.InterfaceDriver{Queues: &MOD_MAX_VQP},
+				&libvirtxml.DomainInterface{
+					Alias: &libvirtxml.DomainAlias{Name: "deviceinfo-maxvqps"},
+					Source: &libvirtxml.DomainInterfaceSource{
+						VDPA: &libvirtxml.DomainInterfaceSourceVDPA{
+							Device: slPath("deviceinfo-maxvqps"),
+						},
+					},
+					Model: &libvirtxml.DomainInterfaceModel{Type: "virtio"},
+					Driver: &libvirtxml.DomainInterfaceDriver{
+						Name:   "vhost",
+						Queues: MOD_MAX_VQP,
+					},
 				},
 				"",
 				uint16(MOD_MAX_VQP),
@@ -232,24 +265,26 @@ var _ = Describe("pod network configurator", func() {
 			}
 			netInfo := newNetInfo("vdpa-iface", "/dev/vhost-vdpa-0", "", 0)
 
-			expectedDomainIface := &domainschema.Interface{
-				Alias:  domainschema.NewUserDefinedAlias("vdpa-iface"),
-				Type:   "vdpa",
-				Source: domainschema.InterfaceSource{Device: slPath("vdpa-iface")},
-				Model:  &domainschema.Model{Type: "virtio"},
+			expectedDomainIface := &libvirtxml.DomainInterface{
+				Alias: &libvirtxml.DomainAlias{Name: "vdpa-iface"},
+
+				Source: &libvirtxml.DomainInterfaceSource{
+					VDPA: &libvirtxml.DomainInterfaceSourceVDPA{Device: slPath("vdpa-iface")},
+				},
+				Model: &libvirtxml.DomainInterfaceModel{Type: "virtio"},
 			}
 
 			testMutator, err := domain.NewVdpaNetworkConfigurator(ifaces, networks, netInfo, DEFAULT_CONT_NAME)
 			Expect(err).ToNot(HaveOccurred())
 
-			existingIface := &domainschema.Interface{Alias: domainschema.NewUserDefinedAlias("bridge-iface")}
-			testDomSpec := &domainschema.DomainSpec{
-				Devices: domainschema.Devices{
-					Interfaces: []domainschema.Interface{*existingIface}}}
+			existingIface := &libvirtxml.DomainInterface{Alias: &libvirtxml.DomainAlias{Name: "bridge-iface"}}
+			testDomSpec := &libvirtxml.Domain{
+				Devices: &libvirtxml.DomainDeviceList{
+					Interfaces: []libvirtxml.DomainInterface{*existingIface}}}
 
 			mutatedDomSpec, err := testMutator.Mutate(testDomSpec)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(mutatedDomSpec.Devices.Interfaces).To(Equal([]domainschema.Interface{*existingIface, *expectedDomainIface}))
+			Expect(mutatedDomSpec.Devices.Interfaces).To(Equal([]libvirtxml.DomainInterface{*existingIface, *expectedDomainIface}))
 		})
 
 		It("should set domain interface correctly when executed more than once", func() {
@@ -257,21 +292,24 @@ var _ = Describe("pod network configurator", func() {
 			networks := []vmschema.Network{{Name: "vdpa-idempotent", NetworkSource: vmschema.NetworkSource{Multus: &vmschema.MultusNetwork{}}}}
 			netInfo := newNetInfo("vdpa-idempotent", "/dev/vhost-vdpa-0", "", 0)
 
-			expectedDomainIface := &domainschema.Interface{
-				Alias:  domainschema.NewUserDefinedAlias("vdpa-idempotent"),
-				Type:   "vdpa",
-				Source: domainschema.InterfaceSource{Device: slPath("vdpa-idempotent")},
-				Model:  &domainschema.Model{Type: "virtio"},
-				MAC:    nil,
+			expectedDomainIface := &libvirtxml.DomainInterface{
+				Alias: &libvirtxml.DomainAlias{Name: "vdpa-idempotent"},
+				Source: &libvirtxml.DomainInterfaceSource{
+					VDPA: &libvirtxml.DomainInterfaceSourceVDPA{
+						Device: slPath("vdpa-idempotent"),
+					},
+				},
+				Model: &libvirtxml.DomainInterfaceModel{Type: "virtio"},
+				MAC:   nil,
 			}
 
 			testMutator, err := domain.NewVdpaNetworkConfigurator(ifaces, networks, netInfo, DEFAULT_CONT_NAME)
 			Expect(err).ToNot(HaveOccurred())
 
-			firstResult, err := testMutator.Mutate(&domainschema.DomainSpec{})
+			firstResult, err := testMutator.Mutate(&libvirtxml.Domain{})
 
 			Expect(err).ToNot(HaveOccurred())
-			Expect(firstResult.Devices.Interfaces).To(Equal([]domainschema.Interface{*expectedDomainIface}))
+			Expect(firstResult.Devices.Interfaces).To(Equal([]libvirtxml.DomainInterface{*expectedDomainIface}))
 
 			secondResult, err := testMutator.Mutate(firstResult)
 			Expect(err).ToNot(HaveOccurred())
@@ -309,27 +347,33 @@ var _ = Describe("pod network configurator", func() {
 				{Name: "vdpa-net-2", NetworkSource: vmschema.NetworkSource{Multus: &vmschema.MultusNetwork{}}},
 			}
 
-			expectedDomainIfaces := []domainschema.Interface{
+			expectedDomainIfaces := []libvirtxml.DomainInterface{
 				{
-					Alias:  domainschema.NewUserDefinedAlias("vdpa-net-1"),
-					Type:   "vdpa",
-					Source: domainschema.InterfaceSource{Device: slPath("vdpa-net-1")},
-					Model:  &domainschema.Model{Type: "virtio"},
-					MAC:    &domainschema.MAC{MAC: "aa:bb:cc:dd:ee:01"},
+					Alias: &libvirtxml.DomainAlias{Name: "vdpa-net-1"},
+					Source: &libvirtxml.DomainInterfaceSource{
+						VDPA: &libvirtxml.DomainInterfaceSourceVDPA{
+							Device: slPath("vdpa-net-1"),
+						},
+					},
+					Model: &libvirtxml.DomainInterfaceModel{Type: "virtio"},
+					MAC:   &libvirtxml.DomainInterfaceMAC{Address: "aa:bb:cc:dd:ee:01"},
 				},
 				{
-					Alias:  domainschema.NewUserDefinedAlias("vdpa-net-2"),
-					Type:   "vdpa",
-					Source: domainschema.InterfaceSource{Device: slPath("vdpa-net-2")},
-					Model:  &domainschema.Model{Type: "virtio"},
-					MAC:    &domainschema.MAC{MAC: "aa:bb:cc:dd:ee:02"},
+					Alias: &libvirtxml.DomainAlias{Name: "vdpa-net-2"},
+					Source: &libvirtxml.DomainInterfaceSource{
+						VDPA: &libvirtxml.DomainInterfaceSourceVDPA{
+							Device: slPath("vdpa-net-2"),
+						},
+					},
+					Model: &libvirtxml.DomainInterfaceModel{Type: "virtio"},
+					MAC:   &libvirtxml.DomainInterfaceMAC{Address: "aa:bb:cc:dd:ee:02"},
 				},
 			}
 
 			testMutator, err := domain.NewVdpaNetworkConfigurator(ifaces, networks, netInfo, DEFAULT_CONT_NAME)
 			Expect(err).ToNot(HaveOccurred())
 
-			mutatedDomSpec, err := testMutator.Mutate(&domainschema.DomainSpec{})
+			mutatedDomSpec, err := testMutator.Mutate(&libvirtxml.Domain{})
 			Expect(err).ToNot(HaveOccurred())
 			Expect(mutatedDomSpec.Devices.Interfaces).To(Equal(expectedDomainIfaces))
 		})
@@ -355,21 +399,24 @@ var _ = Describe("pod network configurator", func() {
 			networks := []vmschema.Network{{Name: "vdpa-path-update", NetworkSource: vmschema.NetworkSource{Multus: &vmschema.MultusNetwork{}}}}
 
 			netInfo1 := newNetInfo("vdpa-path-update", "/dev/vhost-vdpa-1", "", 0)
-			expectedDomainIface1 := &domainschema.Interface{
-				Alias:  domainschema.NewUserDefinedAlias("vdpa-path-update"),
-				Type:   "vdpa",
-				Source: domainschema.InterfaceSource{Device: slPath("vdpa-path-update")},
-				Model:  &domainschema.Model{Type: "virtio"},
-				MAC:    nil,
+			expectedDomainIface1 := &libvirtxml.DomainInterface{
+				Alias: &libvirtxml.DomainAlias{Name: "vdpa-path-update"},
+				Source: &libvirtxml.DomainInterfaceSource{
+					VDPA: &libvirtxml.DomainInterfaceSourceVDPA{
+						Device: slPath("vdpa-path-update"),
+					},
+				},
+				Model: &libvirtxml.DomainInterfaceModel{Type: "virtio"},
+				MAC:   nil,
 			}
 
 			netInfo2 := newNetInfo("vdpa-path-update", "/dev/vhost-vdpa-2", "", 0)
 
 			testMutator1, err := domain.NewVdpaNetworkConfigurator(ifaces, networks, netInfo1, DEFAULT_CONT_NAME)
 			Expect(err).ToNot(HaveOccurred())
-			result1, err := testMutator1.Mutate(&domainschema.DomainSpec{})
+			result1, err := testMutator1.Mutate(&libvirtxml.Domain{})
 			Expect(err).ToNot(HaveOccurred())
-			Expect(result1.Devices.Interfaces).To(Equal([]domainschema.Interface{*expectedDomainIface1}))
+			Expect(result1.Devices.Interfaces).To(Equal([]libvirtxml.DomainInterface{*expectedDomainIface1}))
 
 			testMutator2, err := domain.NewVdpaNetworkConfigurator(ifaces, networks, netInfo2, DEFAULT_CONT_NAME)
 			Expect(err).ToNot(HaveOccurred())
@@ -377,7 +424,7 @@ var _ = Describe("pod network configurator", func() {
 			Expect(err).ToNot(HaveOccurred())
 			// Even if /dev/vhost-vdpa-* path changes in networkinfo,
 			// the symlink path should remain the same
-			Expect(result2.Devices.Interfaces).To(Equal([]domainschema.Interface{*expectedDomainIface1}))
+			Expect(result2.Devices.Interfaces).To(Equal([]libvirtxml.DomainInterface{*expectedDomainIface1}))
 		})
 
 		It("should assign guest pci addresses correctly if one of them is empty", func() {
@@ -409,32 +456,39 @@ var _ = Describe("pod network configurator", func() {
 				{Name: "vdpa-net-2", NetworkSource: vmschema.NetworkSource{Multus: &vmschema.MultusNetwork{}}},
 			}
 
-			expectedDomainIfaces := []domainschema.Interface{
+			expectedDomainIfaces := []libvirtxml.DomainInterface{
 				{
-					Alias:  domainschema.NewUserDefinedAlias("vdpa-net-1"),
-					Type:   "vdpa",
-					Source: domainschema.InterfaceSource{Device: slPath("vdpa-net-1")},
-					Model:  &domainschema.Model{Type: "virtio"},
-					Address: &domainschema.Address{
-						Type:     "pci",
-						Domain:   "0x0000",
-						Bus:      "0x65",
-						Slot:     "0x00",
-						Function: "0x1",
+					Alias: &libvirtxml.DomainAlias{Name: "vdpa-net-1"},
+					Source: &libvirtxml.DomainInterfaceSource{
+						VDPA: &libvirtxml.DomainInterfaceSourceVDPA{
+							Device: slPath("vdpa-net-1"),
+						},
+					},
+					Model: &libvirtxml.DomainInterfaceModel{Type: "virtio"},
+					Address: &libvirtxml.DomainAddress{
+						PCI: &libvirtxml.DomainAddressPCI{
+							Domain:   pointer.P(uint(0)),
+							Bus:      pointer.P(uint(65)),
+							Slot:     pointer.P(uint(0)),
+							Function: pointer.P(uint(1)),
+						},
 					},
 				},
 				{
-					Alias:  domainschema.NewUserDefinedAlias("vdpa-net-2"),
-					Type:   "vdpa",
-					Source: domainschema.InterfaceSource{Device: slPath("vdpa-net-2")},
-					Model:  &domainschema.Model{Type: "virtio"},
+					Alias: &libvirtxml.DomainAlias{Name: "vdpa-net-2"},
+					Source: &libvirtxml.DomainInterfaceSource{
+						VDPA: &libvirtxml.DomainInterfaceSourceVDPA{
+							Device: slPath("vdpa-net-2"),
+						},
+					},
+					Model: &libvirtxml.DomainInterfaceModel{Type: "virtio"},
 				},
 			}
 
 			testMutator, err := domain.NewVdpaNetworkConfigurator(ifaces, networks, netInfo, DEFAULT_CONT_NAME)
 			Expect(err).ToNot(HaveOccurred())
 
-			mutatedDomSpec, err := testMutator.Mutate(&domainschema.DomainSpec{})
+			mutatedDomSpec, err := testMutator.Mutate(&libvirtxml.Domain{})
 			Expect(err).ToNot(HaveOccurred())
 			Expect(mutatedDomSpec.Devices.Interfaces).To(Equal(expectedDomainIfaces))
 		})

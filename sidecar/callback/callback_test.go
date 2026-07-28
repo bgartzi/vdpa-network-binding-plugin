@@ -20,7 +20,6 @@
 package callback_test
 
 import (
-	"encoding/xml"
 	"fmt"
 
 	"kubevirt.io/vdpa-network-binding-plugin/sidecar/callback"
@@ -28,66 +27,97 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	domainschema "kubevirt.io/kubevirt/pkg/virt-launcher/virtwrap/api"
+	"libvirt.org/go/libvirtxml"
 )
 
 var _ = Describe("vdpa hook callback handler", func() {
 	Context("on define domain", func() {
 		It("should fail given empty byte slice stream", func() {
-			_, err := callback.OnDefineDomain([]byte{}, mutatorStub{})
+			_, err := callback.OnDefineDomain([]byte{}, noopMutatorStub(nil))
 			Expect(err).To(HaveOccurred())
 		})
 
 		It("should fail given invalid domain XML", func() {
-			_, err := callback.OnDefineDomain([]byte("invalid-domain-xml"), mutatorStub{})
+			_, err := callback.OnDefineDomain([]byte("invalid-domain-xml"), noopMutatorStub(nil))
 			Expect(err).To(HaveOccurred())
 		})
 
 		It("should fail when domain spec mutator fails", func() {
-			domain := domainschema.NewMinimalDomain("test")
-			domainXML, err := xml.Marshal(domain.Spec)
+			domain := &libvirtxml.Domain{Name: "test-failure"}
+			domainXML, err := domain.Marshal()
 			Expect(err).ToNot(HaveOccurred())
 
 			expectedErr := fmt.Errorf("test error")
-			domSpecMutator := mutatorStub{failMutate: expectedErr}
+			domSpecMutator := noopMutatorStub(expectedErr)
 
-			_, err = callback.OnDefineDomain(domainXML, domSpecMutator)
+			_, err = callback.OnDefineDomain([]byte(domainXML), domSpecMutator)
 			Expect(err).To(Equal(expectedErr))
 		})
 
 		It("given no-op mutator, domain spec should not change", func() {
-			domain := domainschema.NewMinimalDomain("test")
-			domainSpecXML, err := xml.Marshal(domain.Spec)
+			domain := &libvirtxml.Domain{Name: "test-noop"}
+			domainXML, err := domain.Marshal()
 			Expect(err).ToNot(HaveOccurred())
 
-			domSpecMutator := mutatorStub{domSpec: &domain.Spec}
+			domSpecMutator := noopMutatorStub(nil)
 
-			Expect(callback.OnDefineDomain(domainSpecXML, domSpecMutator)).To(Equal(domainSpecXML))
+			res, err := callback.OnDefineDomain([]byte(domainXML), domSpecMutator)
+			Expect(err).To(BeNil())
+			Expect(string(res)).To(Equal(domainXML))
 		})
 
 		It("domain spec should mutate successfully", func() {
-			domain := domainschema.NewMinimalDomain("test")
-			domainSpecXML, err := xml.Marshal(domain.Spec)
+			domain := &libvirtxml.Domain{Name: "test-mutate"}
+			domainXML, err := domain.Marshal()
 			Expect(err).ToNot(HaveOccurred())
 
-			mutatedDomainSpec := domain.Spec.DeepCopy()
-			mutatedDomainSpec.Devices.Interfaces = append(mutatedDomainSpec.Devices.Interfaces,
-				domainschema.Interface{Alias: domainschema.NewUserDefinedAlias("test")})
-			domSpecMutator := mutatorStub{domSpec: mutatedDomainSpec}
+			newInterfaceName := "new-interface"
 
-			mutatedDomainSpecXML, err := xml.Marshal(mutatedDomainSpec)
+			mutator := func(dom *libvirtxml.Domain) *libvirtxml.Domain {
+				if dom.Devices == nil {
+					dom.Devices = &libvirtxml.DomainDeviceList{}
+				}
+				dom.Devices.Interfaces = append(
+					dom.Devices.Interfaces,
+					libvirtxml.DomainInterface{
+						Alias: &libvirtxml.DomainAlias{Name: newInterfaceName},
+					},
+				)
+				return dom
+			}
+			domSpecMutator := mutatorStub{mutator: mutator}
+
+			domain.Devices = &libvirtxml.DomainDeviceList{}
+			domain.Devices.Interfaces = append(
+				domain.Devices.Interfaces,
+				libvirtxml.DomainInterface{
+					Alias: &libvirtxml.DomainAlias{Name: newInterfaceName},
+				},
+			)
+			mutatedDomainSpecXML, err := domain.Marshal()
 			Expect(err).ToNot(HaveOccurred())
 
-			Expect(callback.OnDefineDomain(domainSpecXML, domSpecMutator)).To(Equal(mutatedDomainSpecXML))
+			res, err := callback.OnDefineDomain([]byte(domainXML), domSpecMutator)
+			Expect(err).To(BeNil())
+			Expect(string(res)).To(Equal(mutatedDomainSpecXML))
 		})
 	})
 })
 
 type mutatorStub struct {
-	domSpec    *domainschema.DomainSpec
+	mutator    func(dom *libvirtxml.Domain) *libvirtxml.Domain
 	failMutate error
 }
 
-func (s mutatorStub) Mutate(_ *domainschema.DomainSpec) (*domainschema.DomainSpec, error) {
-	return s.domSpec, s.failMutate
+func (s mutatorStub) Mutate(dom *libvirtxml.Domain) (*libvirtxml.Domain, error) {
+	return s.mutator(dom), s.failMutate
+}
+
+func noopMutatorStub(failMutate error) *mutatorStub {
+	return &mutatorStub{
+		mutator: func(dom *libvirtxml.Domain) *libvirtxml.Domain {
+			return dom
+		},
+		failMutate: failMutate,
+	}
 }

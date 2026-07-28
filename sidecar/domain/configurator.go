@@ -34,8 +34,8 @@ import (
 	"kubevirt.io/kubevirt/pkg/network/downwardapi"
 	netnamescheme "kubevirt.io/kubevirt/pkg/network/namescheme"
 	"kubevirt.io/kubevirt/pkg/network/vmispec"
-	domainschema "kubevirt.io/kubevirt/pkg/virt-launcher/virtwrap/api"
-	"kubevirt.io/kubevirt/pkg/virt-launcher/virtwrap/device"
+
+	libvirtxml "libvirt.org/go/libvirtxml"
 
 	"kubevirt.io/vdpa-network-binding-plugin/sidecar/symlink"
 )
@@ -139,18 +139,21 @@ func NewVdpaNetworkConfigurator(
 		nil
 }
 
-func (p VdpaNetworkConfigurator) Mutate(domainSpec *domainschema.DomainSpec) (*domainschema.DomainSpec, error) {
+func (p VdpaNetworkConfigurator) Mutate(domainSpec *libvirtxml.Domain) (*libvirtxml.Domain, error) {
 	generatedIfaces, err := p.generateInterfaces()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate domain interface spec: %v", err)
 	}
 
-	domainSpecCopy := domainSpec.DeepCopy()
+	if domainSpec.Devices == nil {
+		domainSpec.Devices = &libvirtxml.DomainDeviceList{}
+	}
+
 	for i, config := range p.vdpaConfigs {
-		if iface := lookupIfaceByAliasName(domainSpecCopy.Devices.Interfaces, config.vmiSpecIface.Name); iface != nil {
+		if iface := lookupIfaceByAliasName(domainSpec.Devices.Interfaces, config.vmiSpecIface.Name); iface != nil {
 			*iface = *generatedIfaces[i]
 		} else {
-			domainSpecCopy.Devices.Interfaces = append(domainSpecCopy.Devices.Interfaces, *generatedIfaces[i])
+			domainSpec.Devices.Interfaces = append(domainSpec.Devices.Interfaces, *generatedIfaces[i])
 		}
 
 		ifaceInfo, _ := xml.Marshal(generatedIfaces[i])
@@ -158,12 +161,12 @@ func (p VdpaNetworkConfigurator) Mutate(domainSpec *domainschema.DomainSpec) (*d
 			config.vmiSpecIface.Name, string(ifaceInfo))
 	}
 
-	return domainSpecCopy, nil
+	return domainSpec, nil
 }
 
-func lookupIfaceByAliasName(ifaces []domainschema.Interface, name string) *domainschema.Interface {
+func lookupIfaceByAliasName(ifaces []libvirtxml.DomainInterface, name string) *libvirtxml.DomainInterface {
 	for i, iface := range ifaces {
-		if iface.Alias != nil && iface.Alias.GetName() == name {
+		if iface.Alias != nil && iface.Alias.Name == name {
 			return &ifaces[i]
 		}
 	}
@@ -171,51 +174,52 @@ func lookupIfaceByAliasName(ifaces []domainschema.Interface, name string) *domai
 	return nil
 }
 
-func (p VdpaNetworkConfigurator) generateInterfaces() ([]*domainschema.Interface, error) {
-	var domainInterfaces []*domainschema.Interface
+func (p VdpaNetworkConfigurator) generateInterfaces() ([]*libvirtxml.DomainInterface, error) {
+	var domainInterfaces []*libvirtxml.DomainInterface
 
 	for _, cfg := range p.vdpaConfigs {
-		var pciAddress *domainschema.Address
+		var address *libvirtxml.DomainAddress
+		var err error
 		if cfg.vmiSpecIface.PciAddress != "" {
-			var err error
-			pciAddress, err = device.NewPciAddressField(cfg.vmiSpecIface.PciAddress)
+			address, err = parsePCIAddress(cfg.vmiSpecIface.PciAddress)
 			if err != nil {
 				return nil, err
 			}
 		}
 
-		var mac *domainschema.MAC
+		var mac *libvirtxml.DomainInterfaceMAC
 		if cfg.vmiSpecIface.MacAddress != "" {
-			mac = &domainschema.MAC{MAC: cfg.vmiSpecIface.MacAddress}
+			mac = &libvirtxml.DomainInterfaceMAC{Address: cfg.vmiSpecIface.MacAddress}
 		} else if cfg.Mac != "" {
-			mac = &domainschema.MAC{MAC: cfg.Mac}
+			mac = &libvirtxml.DomainInterfaceMAC{Address: cfg.Mac}
 		}
 
-		var acpi *domainschema.ACPI
+		var acpi *libvirtxml.DomainDeviceACPI
 		if cfg.vmiSpecIface.ACPIIndex > 0 {
-			acpi = &domainschema.ACPI{Index: uint(cfg.vmiSpecIface.ACPIIndex)}
+			acpi = &libvirtxml.DomainDeviceACPI{Index: uint(cfg.vmiSpecIface.ACPIIndex)}
 		}
 
-		var driver *domainschema.InterfaceDriver
+		var driver *libvirtxml.DomainInterfaceDriver
 		maxVirtQueues := uint(cfg.DeviceInfo.Vdpa.MaxVQP)
 		if maxVirtQueues > 0 {
-			driver = &domainschema.InterfaceDriver{
+			driver = &libvirtxml.DomainInterfaceDriver{
 				Name:   "vhost",
-				Queues: &maxVirtQueues,
+				Queues: maxVirtQueues,
 			}
 		}
 
 		vdpaPath := symlink.SharedComputeSymlinkPath(p.containerName, cfg.symlinkName)
 
-		domainInterfaces = append(domainInterfaces, &domainschema.Interface{
-			Alias:   domainschema.NewUserDefinedAlias(cfg.vmiSpecIface.Name),
-			Model:   &domainschema.Model{Type: "virtio"},
-			Address: pciAddress,
+		domainInterfaces = append(domainInterfaces, &libvirtxml.DomainInterface{
+			Alias:   &libvirtxml.DomainAlias{Name: cfg.vmiSpecIface.Name},
+			Model:   &libvirtxml.DomainInterfaceModel{Type: "virtio"},
+			Address: address,
 			MAC:     mac,
 			ACPI:    acpi,
-			Type:    "vdpa",
-			Source:  domainschema.InterfaceSource{Device: vdpaPath},
-			Driver:  driver,
+			Source: &libvirtxml.DomainInterfaceSource{
+				VDPA: &libvirtxml.DomainInterfaceSourceVDPA{Device: vdpaPath},
+			},
+			Driver: driver,
 		})
 	}
 

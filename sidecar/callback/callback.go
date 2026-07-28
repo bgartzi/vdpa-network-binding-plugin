@@ -20,39 +20,37 @@
 package callback
 
 import (
-	"encoding/xml"
 	"fmt"
 
-	domainschema "kubevirt.io/kubevirt/pkg/virt-launcher/virtwrap/api"
+	"libvirt.org/go/libvirtxml"
 )
 
 // TODO: move to Kubevirt domain API package
 const libvirtDomainQemuSchema = "http://libvirt.org/schemas/domain/qemu/1.0"
 
 type DomainSpecMutator interface {
-	Mutate(*domainschema.DomainSpec) (*domainschema.DomainSpec, error)
+	Mutate(*libvirtxml.Domain) (*libvirtxml.Domain, error)
 }
 
 func OnDefineDomain(domainXML []byte, domSpecMutator DomainSpecMutator) ([]byte, error) {
-	domainSpec := &domainschema.DomainSpec{
-		// Unmarshalling domain spec makes the XML namespace attribute empty.
-		// Some domain parameters requires namespace to be defined.
-		// e.g: https://libvirt.org/drvqemu.html#pass-through-of-arbitrary-qemu-commands
-		XmlNS: libvirtDomainQemuSchema,
-	}
-	if err := xml.Unmarshal(domainXML, domainSpec); err != nil {
+	domain := &libvirtxml.Domain{}
+	// Unmarshalling domain spec makes the XML namespace attribute empty.
+	// Some domain parameters requires namespace to be defined.
+	// e.g: https://libvirt.org/drvqemu.html#pass-through-of-arbitrary-qemu-commands
+	//XmlNS: libvirtDomainQemuSchema,
+	if err := domain.Unmarshal(string(domainXML)); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal given domain spec: %v", err)
 	}
 
-	updatedDomainSpec, err := domSpecMutator.Mutate(domainSpec)
+	updatedDomain, err := domSpecMutator.Mutate(domain)
 	if err != nil {
 		return nil, err
 	}
 
-	updatedDomainSpecXML, err := xml.Marshal(updatedDomainSpec)
+	updatedDomainXML, err := updatedDomain.Marshal()
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal updated domain spec: %v", err)
 	}
 
-	return updatedDomainSpecXML, nil
+	return []byte(updatedDomainXML), nil
 }
