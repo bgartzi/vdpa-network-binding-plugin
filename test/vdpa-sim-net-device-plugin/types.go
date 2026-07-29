@@ -17,10 +17,11 @@
 package main
 
 type VdpaSimNetConfig struct {
-	Name   string  `json:"name"`
-	Mac    *string `json:"mac,omitempty"`
-	MTU    *int    `json:"mtu,omitempty"`
-	MaxVQP *uint16 `json:"maxVQP,omitempty"`
+	Name     string  `json:"name"`
+	Mac      *string `json:"mac,omitempty"`
+	MTU      *int    `json:"mtu,omitempty"`
+	MaxVQP   *uint16 `json:"maxVQP,omitempty"`
+	Features *uint64 `json"virtioFeatures,omitempty"`
 }
 
 type VdpaSimNetResources struct {
@@ -33,7 +34,8 @@ type VdpaSimNetDevicePluginConfiguration struct {
 }
 
 type AllocatableVdpaDevice struct {
-	Name   string
-	Path   string
-	MaxVQP *uint16
+	Name     string
+	Path     string
+	MaxVQP   *uint16
+	Features *uint64
 }

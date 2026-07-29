@@ -156,6 +156,10 @@ func createVDPADevices(dpConfig *VdpaSimNetDevicePluginConfiguration) error {
 				devParams.MaxVQP = *config.MaxVQP
 			}
 
+			if config.Features != nil {
+				devParams.Features = *config.Features
+			}
+
 			if err := netlink.VDPANewDev(config.Name, "", simnetMgmtdev, devParams); err != nil {
 				return fmt.Errorf("vdpa dev add: %w", err)
 			}
@@ -198,6 +202,12 @@ func discoverAllocatableDevice(vdpaDeviceName string) (*AllocatableVdpaDevice, e
 	}
 	maxVQs := uint16(vdpaDev.MaxVQS)
 
+	vdpaDevCfg, err := netlink.VDPAGetDevConfigByName(vdpaDeviceName)
+	if err != nil {
+		return nil, err
+	}
+	features := vdpaDevCfg.Features
+
 	for i := 0; i < 10; i++ {
 		entries, err := os.ReadDir(sysDir)
 		if err != nil {
@@ -208,9 +218,10 @@ func discoverAllocatableDevice(vdpaDeviceName string) (*AllocatableVdpaDevice, e
 				devPath := filepath.Join("/dev", e.Name())
 				if _, err := os.Stat(devPath); err == nil {
 					return &AllocatableVdpaDevice{
-						Name:   vdpaDeviceName,
-						Path:   devPath,
-						MaxVQP: &maxVQs,
+						Name:     vdpaDeviceName,
+						Path:     devPath,
+						MaxVQP:   &maxVQs,
+						Features: &features,
 					}, nil
 				}
 			}
@@ -221,15 +232,22 @@ func discoverAllocatableDevice(vdpaDeviceName string) (*AllocatableVdpaDevice, e
 }
 
 func createDeviceInfo(resourceName string, device *AllocatableVdpaDevice) error {
+	dev := &nadv1.VdpaDevice{
+		Path:         device.Path,
+		ParentDevice: simnetMgmtdev,
+		Driver:       "vhost",
+	}
+	if device.MaxVQP != nil {
+		dev.MaxVQP = *device.MaxVQP
+	}
+	if device.Features != nil {
+		dev.VirtioFeatures = *device.Features
+	}
+
 	info := nadv1.DeviceInfo{
 		Type:    nadv1.DeviceInfoTypeVDPA,
 		Version: nadv1.DeviceInfoVersion,
-		Vdpa: &nadv1.VdpaDevice{
-			Path:         device.Path,
-			ParentDevice: simnetMgmtdev,
-			Driver:       "vhost",
-			MaxVQP:       *device.MaxVQP,
-		},
+		Vdpa:    dev,
 	}
 
 	return nadutils.SaveDeviceInfoForDP(resourceName, device.Name, &info)
