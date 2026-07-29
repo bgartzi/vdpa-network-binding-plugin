@@ -199,14 +199,10 @@ func (p VdpaNetworkConfigurator) generateInterfaces() ([]*libvirtxml.DomainInter
 			acpi = &libvirtxml.DomainDeviceACPI{Index: uint(cfg.vmiSpecIface.ACPIIndex)}
 		}
 
-		var driver *libvirtxml.DomainInterfaceDriver
-		maxVirtQueues := uint(cfg.DeviceInfo.Vdpa.MaxVQP)
-		if maxVirtQueues > 0 {
-			driver = &libvirtxml.DomainInterfaceDriver{
-				Name:   "vhost",
-				Queues: maxVirtQueues,
-			}
-		}
+		driver := NewNetInterfaceDriver(
+			uint(cfg.DeviceInfo.Vdpa.MaxVQP),
+			cfg.DeviceInfo.Vdpa.VirtioFeatures,
+		)
 
 		vdpaPath := symlink.SharedComputeSymlinkPath(p.containerName, cfg.symlinkName)
 
