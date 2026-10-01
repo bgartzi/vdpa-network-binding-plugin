@@ -67,7 +67,7 @@ test_webhook:
 test_nodehook:
 	ginkgo -v -r nodehook
 
-images: image_sidecar image_webhook
+images: image_sidecar image_webhook image_nodehook
 
 image_sidecar:
 	$(OCI_BIN) build -f sidecar/Containerfile -t $(IMAGE_REGISTRY)/$(SIDECAR_NAME):$(IMAGE_TAG) .
@@ -75,7 +75,10 @@ image_sidecar:
 image_webhook:
 	$(OCI_BIN) build -f webhook/Containerfile -t $(IMAGE_REGISTRY)/$(WEBHOOK_NAME):$(IMAGE_TAG) .
 
-push: push_sidecar push_webhook
+image_nodehook:
+	$(OCI_BIN) build -f nodehook/Containerfile -t $(IMAGE_REGISTRY)/$(NODEHOOK_NAME):$(IMAGE_TAG) .
+
+push: push_sidecar push_webhook push_nodehook
 
 push_sidecar:
 	$(OCI_BIN) push \
@@ -88,6 +91,12 @@ push_webhook:
 		--tls-verify=$(REQUIRE_IMAGE_PUSH_TLS_VERIFICATION) \
 		$(IMAGE_REGISTRY)/$(WEBHOOK_NAME):$(IMAGE_TAG) \
 		$(PUSH_REGISTRY)/$(WEBHOOK_NAME):$(IMAGE_TAG)
+
+push_nodehook:
+	$(OCI_BIN) push \
+		--tls-verify=$(REQUIRE_IMAGE_PUSH_TLS_VERIFICATION) \
+		$(IMAGE_REGISTRY)/$(NODEHOOK_NAME):$(IMAGE_TAG) \
+		$(PUSH_REGISTRY)/$(NODEHOOK_NAME):$(IMAGE_TAG)
 
 
 image_test_dependencies: image_test_device_plugin image_test_cni
@@ -167,4 +176,5 @@ test_integration:
         build_test_cni image_test_cni push_test_cni sync_test_dependencies \
         image_test_dependencies push_test_dependencies build_test_dependencies \
         kubevirtci_init kubevirtci_update cluster_up cluster_down \
-		cluster_sync_kubevirt test_integration build_nodehook test_nodehook
+		cluster_sync_kubevirt test_integration build_nodehook test_nodehook \
+		image_nodehook push_nodehook
