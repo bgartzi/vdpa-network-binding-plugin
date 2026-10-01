@@ -4,6 +4,7 @@ PUSH_REGISTRY ?= $(IMAGE_REGISTRY)
 IMAGE_TAG ?= latest
 SIDECAR_NAME ?= vdpa-network-binding-sidecar
 WEBHOOK_NAME ?= vdpa-network-binding-admission-webhook
+NODEHOOK_NAME ?= vdpa-network-binding-node-plugin-hook
 
 REQUIRE_IMAGE_PUSH_TLS_VERIFICATION ?= true
 
@@ -23,13 +24,16 @@ OCI_BIN ?= podman
 
 all: lint format test build
 
-build: build_sidecar build_admission_webhook
+build: build_sidecar build_admission_webhook build_nodehook
 
 build_sidecar:
 	go build -C sidecar $(GO_BUILD_FLAGS) -o ../$(BUILD_DIR)/$(SIDECAR_NAME)
 
 build_admission_webhook:
 	go build -C webhook $(GO_BUILD_FLAGS) -o ../$(BUILD_DIR)/$(WEBHOOK_NAME)
+
+build_nodehook:
+	CGO_ENABLED=0 go build -C nodehook $(GO_BUILD_FLAGS) -o ../$(BUILD_DIR)/$(NODEHOOK_NAME)
 
 build_test_dependencies: build_test_cni build_test_device_plugin
 
@@ -52,13 +56,16 @@ format_inplace:
 lint:
 	golangci-lint run
 
-test: test_sidecar test_webhook
+test: test_sidecar test_webhook test_nodehook
 
 test_sidecar:
 	ginkgo -v -r sidecar
 
 test_webhook:
 	ginkgo -v -r webhook
+
+test_nodehook:
+	ginkgo -v -r nodehook
 
 images: image_sidecar image_webhook
 
@@ -160,4 +167,4 @@ test_integration:
         build_test_cni image_test_cni push_test_cni sync_test_dependencies \
         image_test_dependencies push_test_dependencies build_test_dependencies \
         kubevirtci_init kubevirtci_update cluster_up cluster_down \
-		cluster_sync_kubevirt test_integration
+		cluster_sync_kubevirt test_integration build_nodehook test_nodehook
