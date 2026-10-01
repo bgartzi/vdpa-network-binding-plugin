@@ -1,0 +1,16 @@
+apiVersion: plugin.kubevirt.io/v1alpha1
+kind: Plugin
+metadata:
+  name: vdpa-network-binding-plugin-node-plugin-hook
+spec:
+  nodeHooks:
+  - permittedHooks:
+    - PreVMStart
+    socket: /var/run/kubevirt/plugins/vdpa-network-binding-plugin-node-plugin-hook/node.sock
+    failureStrategy: Fail
+    timeout: 10s
+  - permittedHooks:
+    - PreMigrationTarget
+    socket: /var/run/kubevirt/plugins/vdpa-network-binding-plugin-node-plugin-hook/node.sock
+    failureStrategy: Fail
+    timeout: 10s
