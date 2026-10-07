@@ -176,6 +176,9 @@ cluster_down:
 cluster_sync_kubevirt:
 	./test/cluster/install_kubevirt.sh ${KUBEVIRT_SYNC_VERSION}
 
+cluster_patch_kubevirt_featuregates:
+	./test/cluster/kubectl.sh patch kubevirt kubevirt -n kubevirt --type='merge' -p '{"spec":{"configuration":{"developerConfiguration":{"featureGates":["Plugins"]}}}}'
+
 test_integration:
 	go test -C test/integration/ -kubeconfig=${KUBECONFIG} --ginkgo.vv
 
@@ -188,4 +191,5 @@ test_integration:
         image_test_dependencies push_test_dependencies build_test_dependencies \
         kubevirtci_init kubevirtci_update cluster_up cluster_down \
 		cluster_sync_kubevirt test_integration generate build_nodehook test_nodehook \
-		image_nodehook push_nodehook manifest_nodehook sync_nodehook
+		image_nodehook push_nodehook manifest_nodehook sync_nodehook \
+		cluster_patch_kubevirt_featuregates
