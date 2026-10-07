@@ -60,6 +60,9 @@ test_sidecar:
 test_webhook:
 	ginkgo -v -r webhook
 
+generate:
+	find . -type d -name vendor -prune -o -name kubevirtci -type d -prune -o -type f -name "*.go" -exec go generate {} \;
+
 images: image_sidecar image_webhook
 
 image_sidecar:
@@ -160,4 +163,4 @@ test_integration:
         build_test_cni image_test_cni push_test_cni sync_test_dependencies \
         image_test_dependencies push_test_dependencies build_test_dependencies \
         kubevirtci_init kubevirtci_update cluster_up cluster_down \
-		cluster_sync_kubevirt test_integration
+		cluster_sync_kubevirt test_integration generate \
