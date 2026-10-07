@@ -27,7 +27,6 @@ require (
 	google.golang.org/grpc v1.80.0
 	k8s.io/api v0.36.2
 	k8s.io/apimachinery v0.36.2
-	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/kubelet v0.36.2
 	kubevirt.io/api v1.9.0
 	kubevirt.io/client-go v1.9.0
@@ -121,6 +120,7 @@ require (
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	k8s.io/apiextensions-apiserver v0.34.3 // indirect
+	k8s.io/client-go v12.0.0+incompatible // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
 	k8s.io/kube-aggregator v0.28.2 // indirect
 	k8s.io/kube-openapi v0.31.0 // indirect
