@@ -22,6 +22,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.28.1
 	github.com/onsi/gomega v1.39.1
 	github.com/vishvananda/netlink v1.3.1
+	go.uber.org/mock v0.5.1
 	golang.org/x/sys v0.48.0
 	google.golang.org/grpc v1.80.0
 	k8s.io/api v0.36.2
@@ -102,7 +103,6 @@ require (
 	github.com/stoewer/go-strcase v1.3.0 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
-	go.uber.org/mock v0.5.1 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.47.0 // indirect
