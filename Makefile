@@ -72,7 +72,7 @@ test_nodehook:
 generate:
 	find . -type d -name vendor -prune -o -name kubevirtci -type d -prune -o -type f -name "*.go" -exec go generate {} \;
 
-images: image_sidecar image_webhook image_nodehook
+images: image_sidecar image_nodehook
 
 image_sidecar:
 	$(OCI_BIN) build -f sidecar/Containerfile -t $(IMAGE_REGISTRY)/$(SIDECAR_NAME):$(IMAGE_TAG) .
@@ -83,7 +83,7 @@ image_webhook:
 image_nodehook:
 	$(OCI_BIN) build -f nodehook/Containerfile -t $(IMAGE_REGISTRY)/$(NODEHOOK_NAME):$(IMAGE_TAG) .
 
-push: push_sidecar push_webhook push_nodehook
+push: push_sidecar push_nodehook
 
 push_sidecar:
 	$(OCI_BIN) push \
@@ -125,7 +125,7 @@ push_test_cni:
 		$(IMAGE_REGISTRY)/$(TEST_CNI_NAME):$(IMAGE_TAG) \
 		$(PUSH_REGISTRY)/$(TEST_CNI_NAME):$(IMAGE_TAG)
 
-manifests: manifest_webhook manifest_sidecar manifest_nodehook
+manifests: manifest_sidecar manifest_nodehook
 
 manifest_webhook:
 	@sed -e "s|VDPA_WEBHOOK_MANIFEST_TEMPLATE_IMAGE|$(IMAGE_REGISTRY)/$(WEBHOOK_NAME):$(IMAGE_TAG)|g" $(WEBHOOK_MANIFEST_TEMPLATE_PATH) > $(WEBHOOK_MANIFEST_PATH)
@@ -136,7 +136,7 @@ manifest_sidecar:
 manifest_nodehook:
 	@sed -e "s|VDPA_NODE_HOOK_MANIFEST_TEMPLATE_IMAGE|$(IMAGE_REGISTRY)/$(NODEHOOK_NAME):$(IMAGE_TAG)|g" $(NODE_HOOK_MANIFEST_TEMPLATE_PATH) > $(NODE_HOOK_MANIFEST_PATH)
 
-sync: sync_webhook sync_sidecar sync_nodehook
+sync: sync_sidecar sync_nodehook
 
 sync_webhook: manifest_webhook
 	./test/cluster/kubectl.sh apply -f $(WEBHOOK_MANIFEST_PATH)
