@@ -20,6 +20,7 @@ package memlock
 import (
 	"fmt"
 	"log"
+	"syscall"
 	"unsafe"
 
 	"golang.org/x/sys/unix"
@@ -46,7 +47,7 @@ func ConfigureMemlockRLimits(
 	return setProcessMemlockRLimitsFunc(*targetPid, unix.RLIM_INFINITY)
 }
 
-// Taken from kubevirt/pkg/hypervisor/common
+// Taken from https://github.com/kubevirt/kubevirt/blob/f2c20fc94a9c7b3a1615346e42fa895740b4a6a4/pkg/hypervisor/common/process.go#L68-L85
 func setProcessMemlockRLimits(pid int, size uint64) error {
 	// standard golang libraries don't provide API to set runtime limits
 	// for other processes, so we have to directly call to kernel
@@ -60,8 +61,8 @@ func setProcessMemlockRLimits(pid int, size uint64) error {
 		uintptr(unsafe.Pointer(&rlimit)), // #nosec used in unix RawSyscall6
 		0, 0, 0)
 	if errno != 0 {
-		log.Printf("ERROR: could not set prlimit of process %d to %d: errno %v", pid, size, errno)
-		return fmt.Errorf("error setting prlimit: %v", errno)
+		log.Printf("ERROR: could not set prlimit of process %d to %d: %q", pid, size, syscall.Errno(errno))
+		return fmt.Errorf("error setting prlimit: %w", syscall.Errno(errno))
 	}
 
 	log.Printf("INFO: prlimit of process %d set to %d", pid, size)
