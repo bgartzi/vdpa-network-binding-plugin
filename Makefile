@@ -16,6 +16,8 @@ WEBHOOK_MANIFEST_TEMPLATE_PATH ?= $(PWD)/templates/webhook-manifest-template.yam
 WEBHOOK_MANIFEST_PATH ?= $(PWD)/manifests/vdpa-mutating-webhook.yaml
 SIDECAR_MANIFEST_TEMPLATE_PATH ?= $(PWD)/templates/sidecar-patch-template.yaml
 SIDECAR_MANIFEST_PATH ?= $(PWD)/manifests/vdpa-sidecar-patch.yaml
+NODE_HOOK_MANIFEST_TEMPLATE_PATH ?= $(PWD)/templates/node-hook-template.yaml
+NODE_HOOK_MANIFEST_PATH ?= $(PWD)/manifests/vdpa-node-hook.yaml
 TEST_DEPENDENCIES_MANIFESTS_PATH ?= $(PWD)/test/manifests
 KUBEVIRT_SYNC_VERSION ?= latest
 
@@ -123,7 +125,7 @@ push_test_cni:
 		$(IMAGE_REGISTRY)/$(TEST_CNI_NAME):$(IMAGE_TAG) \
 		$(PUSH_REGISTRY)/$(TEST_CNI_NAME):$(IMAGE_TAG)
 
-manifests: manifest_webhook manifest_sidecar
+manifests: manifest_webhook manifest_sidecar manifest_nodehook
 
 manifest_webhook:
 	@sed -e "s|VDPA_WEBHOOK_MANIFEST_TEMPLATE_IMAGE|$(IMAGE_REGISTRY)/$(WEBHOOK_NAME):$(IMAGE_TAG)|g" $(WEBHOOK_MANIFEST_TEMPLATE_PATH) > $(WEBHOOK_MANIFEST_PATH)
@@ -131,13 +133,19 @@ manifest_webhook:
 manifest_sidecar:
 	@sed -e "s|VDPA_SIDECAR_MANIFEST_TEMPLATE_IMAGE|$(IMAGE_REGISTRY)/$(SIDECAR_NAME):$(IMAGE_TAG)|g" $(SIDECAR_MANIFEST_TEMPLATE_PATH) > $(SIDECAR_MANIFEST_PATH)
 
-sync: sync_webhook sync_sidecar
+manifest_nodehook:
+	@sed -e "s|VDPA_NODE_HOOK_MANIFEST_TEMPLATE_IMAGE|$(IMAGE_REGISTRY)/$(NODEHOOK_NAME):$(IMAGE_TAG)|g" $(NODE_HOOK_MANIFEST_TEMPLATE_PATH) > $(NODE_HOOK_MANIFEST_PATH)
+
+sync: sync_webhook sync_sidecar sync_nodehook
 
 sync_webhook: manifest_webhook
 	./test/cluster/kubectl.sh apply -f $(WEBHOOK_MANIFEST_PATH)
 
 sync_sidecar: manifest_sidecar
 	./test/cluster/kubectl.sh patch -n kubevirt kubevirts kubevirt --type merge --patch-file $(SIDECAR_MANIFEST_PATH)
+
+sync_nodehook: manifest_nodehook
+	./test/cluster/kubectl.sh apply -f $(NODE_HOOK_MANIFEST_PATH)
 
 sync_test_dependencies:
 	cat $(TEST_DEPENDENCIES_MANIFESTS_PATH)/*.yaml | \
@@ -180,4 +188,4 @@ test_integration:
         image_test_dependencies push_test_dependencies build_test_dependencies \
         kubevirtci_init kubevirtci_update cluster_up cluster_down \
 		cluster_sync_kubevirt test_integration generate build_nodehook test_nodehook \
-		image_nodehook push_nodehook
+		image_nodehook push_nodehook manifest_nodehook sync_nodehook
