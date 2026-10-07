@@ -3,13 +3,19 @@
 This repository contains the source code that brings secondary [vDPA][vdpa]
 network interfaces to KubeVirt.
 
-The repository contains two components: a sidecar and a mutating
-admission webhook. The sidecar is deployed as a sidecar container in the
-virt-launcher pods of VMs that require a vDPA network interface. It is
-in charge of mutating the domainXML to include the vDPA interface
-configuration. The webhook mutates the VMI specs that contain vDPA
-interfaces so the `reservedOverhead` and `memlock` configuration matches
-the VM's expectations.
+The repository contains three components: a sidecar, a mutating
+admission webhook and a KubeVirt node plugin hook. The sidecar is
+deployed as a sidecar container in the virt-launcher pods of VMs that
+require a vDPA network interface. It is in charge of mutating the
+domainXML to include the vDPA interface configuration. The webhook
+mutates the VMI specs that contain vDPA interfaces so the
+`reservedOverhead` and `memlock` configuration matches the VM's
+expectations. The node hook increases the memlock RLimits of the
+virtqemud processes running in the virt-launchers that hold VMs with
+VDPA interfaces. It is called before VMs are started or received in the
+migration target launcher. It shows an alternative way to setting
+memlock RLimits to the formerly used and KubeVirt built-in
+`reservedOverhead` field.
 
 [vdpa]: https://vdpa-dev.gitlab.io/
 
@@ -45,6 +51,23 @@ Then apply them to your cluster
 kubectl apply -f manifests/vdpa-mutating-webhook.yaml
 ```
 
+### Node plugin hook
+As with the other components, setting appopriate `IMAGE_REGISTRY`,
+`IMAGE_TAG` and `PUSH_REGISTRY` help tweaking manifests:
+```
+$ make manifests
+```
+
+**NOTE**: This component currently requires the `Plugins` feature gate
+of KubeVirt to be enabled.
+
+Then,
+```
+$ kubectl apply -f manifests/vdpa-node-plugin-hook.yaml
+```
+
+deploys the node hook into all cluster's nodes by a daemonset and
+registers the KubeVirt plugin.
 
 ## Develop
 We are willing to accept contributions. To contribute, create your own
