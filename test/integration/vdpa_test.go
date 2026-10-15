@@ -34,6 +34,7 @@ var _ = Describe("guest with vdpa interfaces", func() {
 		vmiName = RandomVMIName()
 		virClient, err = kubecli.GetKubevirtClient()
 		Expect(err).ToNot(HaveOccurred())
+		setVdpaBindingNameFromEnv()
 	})
 
 	AfterEach(func() {
