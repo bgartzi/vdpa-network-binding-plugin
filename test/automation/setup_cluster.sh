@@ -15,4 +15,4 @@ make sync_test_dependencies
 make images
 make push
 make sync
-${CURRENT_DIR}/../cluster/kubectl.sh wait -n kubevirt deployment kubevirt-vdpa-mutating-webhook --for condition=Available --timeout=5m
+${CURRENT_DIR}/../cluster/kubectl.sh rollout status daemonset vdpa-network-binding-plugin-node-plugin-hook --timeout=5m
