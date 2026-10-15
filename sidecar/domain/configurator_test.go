@@ -39,7 +39,10 @@ import (
 	domainschema "kubevirt.io/kubevirt/pkg/virt-launcher/virtwrap/api"
 )
 
-const DEFAULT_CONT_NAME = "containername"
+const (
+	DEFAULT_CONT_NAME = "containername"
+	DEFAULT_NBP_NAME  = "vdpa"
+)
 
 var DEFAULT_SYMLINK_DIR = path.Join(
 	"/var/run/kubevirt-hooks/",
@@ -76,7 +79,7 @@ var _ = Describe("pod network configurator", func() {
 		DescribeTable("should fail to create configurator given",
 			func(ifaces []vmschema.Interface, networks []vmschema.Network) {
 				netInfo := &downwardapi.NetworkInfo{}
-				_, err := domain.NewVdpaNetworkConfigurator(ifaces, networks, netInfo, DEFAULT_CONT_NAME)
+				_, err := domain.NewVdpaNetworkConfigurator(ifaces, networks, netInfo, DEFAULT_CONT_NAME, DEFAULT_NBP_NAME)
 
 				Expect(err).To(HaveOccurred())
 			},
@@ -106,7 +109,7 @@ var _ = Describe("pod network configurator", func() {
 			// this test validates guest PCI address parsing, not host VF's PCI address.
 			netInfo := newNetInfo("invalid-pci", "/dev/vhost-vdpa-0", "")
 
-			testMutator, err := domain.NewVdpaNetworkConfigurator(ifaces, networks, netInfo, DEFAULT_CONT_NAME)
+			testMutator, err := domain.NewVdpaNetworkConfigurator(ifaces, networks, netInfo, DEFAULT_CONT_NAME, DEFAULT_NBP_NAME)
 			Expect(err).ToNot(HaveOccurred())
 
 			_, err = testMutator.Mutate(&domainschema.DomainSpec{})
@@ -119,7 +122,7 @@ var _ = Describe("pod network configurator", func() {
 				networks := []vmschema.Network{{Name: iface.Name, NetworkSource: vmschema.NetworkSource{Multus: &vmschema.MultusNetwork{}}}}
 				netInfo := newNetInfo(iface.Name, "/dev/vhost-vdpa-0", macFromDeviceInfo)
 
-				testMutator, err := domain.NewVdpaNetworkConfigurator(ifaces, networks, netInfo, DEFAULT_CONT_NAME)
+				testMutator, err := domain.NewVdpaNetworkConfigurator(ifaces, networks, netInfo, DEFAULT_CONT_NAME, DEFAULT_NBP_NAME)
 				Expect(err).ToNot(HaveOccurred())
 
 				mutatedDomSpec, err := testMutator.Mutate(&domainschema.DomainSpec{})
@@ -218,7 +221,7 @@ var _ = Describe("pod network configurator", func() {
 				Model:  &domainschema.Model{Type: "virtio"},
 			}
 
-			testMutator, err := domain.NewVdpaNetworkConfigurator(ifaces, networks, netInfo, DEFAULT_CONT_NAME)
+			testMutator, err := domain.NewVdpaNetworkConfigurator(ifaces, networks, netInfo, DEFAULT_CONT_NAME, DEFAULT_NBP_NAME)
 			Expect(err).ToNot(HaveOccurred())
 
 			existingIface := &domainschema.Interface{Alias: domainschema.NewUserDefinedAlias("bridge-iface")}
@@ -244,7 +247,7 @@ var _ = Describe("pod network configurator", func() {
 				MAC:    nil,
 			}
 
-			testMutator, err := domain.NewVdpaNetworkConfigurator(ifaces, networks, netInfo, DEFAULT_CONT_NAME)
+			testMutator, err := domain.NewVdpaNetworkConfigurator(ifaces, networks, netInfo, DEFAULT_CONT_NAME, DEFAULT_NBP_NAME)
 			Expect(err).ToNot(HaveOccurred())
 
 			firstResult, err := testMutator.Mutate(&domainschema.DomainSpec{})
@@ -305,7 +308,7 @@ var _ = Describe("pod network configurator", func() {
 				},
 			}
 
-			testMutator, err := domain.NewVdpaNetworkConfigurator(ifaces, networks, netInfo, DEFAULT_CONT_NAME)
+			testMutator, err := domain.NewVdpaNetworkConfigurator(ifaces, networks, netInfo, DEFAULT_CONT_NAME, DEFAULT_NBP_NAME)
 			Expect(err).ToNot(HaveOccurred())
 
 			mutatedDomSpec, err := testMutator.Mutate(&domainschema.DomainSpec{})
@@ -325,7 +328,7 @@ var _ = Describe("pod network configurator", func() {
 
 			netInfo := newNetInfo("vdpa-net-1", "/dev/vhost-vdpa-0", "")
 
-			_, err := domain.NewVdpaNetworkConfigurator(ifaces, networks, netInfo, DEFAULT_CONT_NAME)
+			_, err := domain.NewVdpaNetworkConfigurator(ifaces, networks, netInfo, DEFAULT_CONT_NAME, DEFAULT_NBP_NAME)
 			Expect(err).To(HaveOccurred())
 		})
 
@@ -344,13 +347,13 @@ var _ = Describe("pod network configurator", func() {
 
 			netInfo2 := newNetInfo("vdpa-path-update", "/dev/vhost-vdpa-2", "")
 
-			testMutator1, err := domain.NewVdpaNetworkConfigurator(ifaces, networks, netInfo1, DEFAULT_CONT_NAME)
+			testMutator1, err := domain.NewVdpaNetworkConfigurator(ifaces, networks, netInfo1, DEFAULT_CONT_NAME, DEFAULT_NBP_NAME)
 			Expect(err).ToNot(HaveOccurred())
 			result1, err := testMutator1.Mutate(&domainschema.DomainSpec{})
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result1.Devices.Interfaces).To(Equal([]domainschema.Interface{*expectedDomainIface1}))
 
-			testMutator2, err := domain.NewVdpaNetworkConfigurator(ifaces, networks, netInfo2, DEFAULT_CONT_NAME)
+			testMutator2, err := domain.NewVdpaNetworkConfigurator(ifaces, networks, netInfo2, DEFAULT_CONT_NAME, DEFAULT_NBP_NAME)
 			Expect(err).ToNot(HaveOccurred())
 			result2, err := testMutator2.Mutate(result1)
 			Expect(err).ToNot(HaveOccurred())
@@ -410,13 +413,37 @@ var _ = Describe("pod network configurator", func() {
 				},
 			}
 
-			testMutator, err := domain.NewVdpaNetworkConfigurator(ifaces, networks, netInfo, DEFAULT_CONT_NAME)
+			testMutator, err := domain.NewVdpaNetworkConfigurator(ifaces, networks, netInfo, DEFAULT_CONT_NAME, DEFAULT_NBP_NAME)
 			Expect(err).ToNot(HaveOccurred())
 
 			mutatedDomSpec, err := testMutator.Mutate(&domainschema.DomainSpec{})
 			Expect(err).ToNot(HaveOccurred())
 			Expect(mutatedDomSpec.Devices.Interfaces).To(Equal(expectedDomainIfaces))
 		})
+
+		It("should set domain interface correctly when network binding plugin name is not the default", func() {
+			alternativeNBPName := "alternative-vdpa-plugin-name"
+			ifaces := []vmschema.Interface{{Name: "vdpa-alt-name", Binding: &vmschema.PluginBinding{Name: alternativeNBPName}}}
+			networks := []vmschema.Network{{Name: "vdpa-alt-name", NetworkSource: vmschema.NetworkSource{Multus: &vmschema.MultusNetwork{}}}}
+			netInfo := newNetInfo("vdpa-alt-name", "/dev/vhost-vdpa-0", "")
+
+			expectedDomainIface := &domainschema.Interface{
+				Alias:  domainschema.NewUserDefinedAlias("vdpa-alt-name"),
+				Type:   "vdpa",
+				Source: domainschema.InterfaceSource{Device: slPath("vdpa-alt-name")},
+				Model:  &domainschema.Model{Type: "virtio"},
+				MAC:    nil,
+			}
+
+			testMutator, err := domain.NewVdpaNetworkConfigurator(ifaces, networks, netInfo, DEFAULT_CONT_NAME, alternativeNBPName)
+			Expect(err).ToNot(HaveOccurred())
+
+			firstResult, err := testMutator.Mutate(&domainschema.DomainSpec{})
+
+			Expect(err).ToNot(HaveOccurred())
+			Expect(firstResult.Devices.Interfaces).To(Equal([]domainschema.Interface{*expectedDomainIface}))
+		})
+
 	})
 
 	Context("GetDownwardAPINetworkInfo file handling", func() {

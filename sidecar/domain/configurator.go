@@ -51,11 +51,6 @@ type VdpaNetworkConfigurator struct {
 	containerName string
 }
 
-const (
-	// VdpaPluginName vdpa binding plugin name should be registered to Kubevirt through Kubevirt CR
-	VdpaPluginName = "vdpa"
-)
-
 func readFileUntilNotEmpty(networkPCIMapPath string) ([]byte, error) {
 	var networkPCIMapBytes []byte
 
@@ -96,6 +91,7 @@ func NewVdpaNetworkConfigurator(
 	networks []vmschema.Network,
 	netInfo *downwardapi.NetworkInfo,
 	containerName string,
+	networkBindingPluginName string,
 ) (*VdpaNetworkConfigurator, error) {
 	netNameSchema := netnamescheme.CreateHashedNetworkNameScheme(networks)
 	var configs []*VdpaIfaceConfig
@@ -106,7 +102,7 @@ func NewVdpaNetworkConfigurator(
 				return nil, fmt.Errorf("no interface named %s found", net.Name)
 			}
 
-			if iface.Binding == nil || iface.Binding.Name != VdpaPluginName {
+			if iface.Binding == nil || iface.Binding.Name != networkBindingPluginName {
 				log.Log.Infof("interface %q is not set with Vdpa network binding plugin", net.Name)
 				continue
 			}

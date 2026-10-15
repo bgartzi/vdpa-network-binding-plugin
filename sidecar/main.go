@@ -35,11 +35,20 @@ import (
 	"kubevirt.io/client-go/log"
 )
 
-const hookSocket = "vdpa.sock"
-const sidecarAPIVersion = "v1alpha3"
-const sidecarName = "vdpa-network-binding-sidecar"
+const (
+	hookSocket                     = "vdpa.sock"
+	sidecarAPIVersion              = "v1alpha3"
+	sidecarName                    = "vdpa-network-binding-sidecar"
+	NetworkBindingPluginNameEnvVar = "NETWORK_BINDING_PLUGIN_NAME"
+	DefaultVdpaPluginName          = "vdpa"
+)
 
 func main() {
+	networkBindingPluginName, ok := os.LookupEnv(NetworkBindingPluginNameEnvVar)
+	if !ok {
+		networkBindingPluginName = DefaultVdpaPluginName
+	}
+
 	log.InitializeLogging(sidecarName)
 	socketPath := filepath.Join(hooks.HookSocketsSharedDirectory, hookSocket)
 	socket, err := net.Listen("unix", socketPath)
@@ -57,7 +66,13 @@ func main() {
 	hooksInfo.RegisterInfoServer(server, srv.InfoServer{Version: sidecarAPIVersion})
 
 	shutdownChan := make(chan struct{})
-	hooksV1alpha3.RegisterCallbacksServer(server, srv.V1alpha3Server{Done: shutdownChan})
+	hooksV1alpha3.RegisterCallbacksServer(
+		server,
+		srv.V1alpha3Server{
+			NetworkBindingPluginName: networkBindingPluginName,
+			Done:                     shutdownChan,
+		},
+	)
 
 	log.Log.Infof("Starting vdpa hook server exposing services on socket %q using API version %s", socketPath, sidecarAPIVersion)
 	srv.Serve(server, socket, shutdownChan)
