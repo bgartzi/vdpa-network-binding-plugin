@@ -3,19 +3,15 @@
 This repository contains the source code that brings secondary [vDPA][vdpa]
 network interfaces to KubeVirt.
 
-The repository contains three components: a sidecar, a mutating
-admission webhook and a KubeVirt node plugin hook. The sidecar is
-deployed as a sidecar container in the virt-launcher pods of VMs that
-require a vDPA network interface. It is in charge of mutating the
-domainXML to include the vDPA interface configuration. The webhook
-mutates the VMI specs that contain vDPA interfaces so the
-`reservedOverhead` and `memlock` configuration matches the VM's
-expectations. The node hook increases the memlock RLimits of the
+The repository contains two components: a sidecar, and a KubeVirt node
+plugin hook. The sidecar is deployed as a sidecar container in the
+virt-launcher pods of VMs that require a vDPA network interface. It is
+in charge of mutating the domainXML to include the vDPA interface
+configuration. The node hook increases the memlock RLimits of the
 virtqemud processes running in the virt-launchers that hold VMs with
 VDPA interfaces. It is called before VMs are started or received in the
-migration target launcher. It shows an alternative way to setting
-memlock RLimits to the formerly used and KubeVirt built-in
-`reservedOverhead` field.
+migration target launcher. It increases the memlock RLimits of VMs with
+VDPA network interfaces.
 
 [vdpa]: https://vdpa-dev.gitlab.io/
 
@@ -36,19 +32,6 @@ environment variables, run:
 $ make manifests
 $ kubectl patch -n kubevirt kubevirts kubevirt --type merge \
   --patch-file manifests/vdpa-sidecar-patch.yaml
-```
-
-### Mutating admission webhook
-A default set of manifests can be found under
-`manifests/vdpa-mutating-webhook.yaml`. However, these point into the
-default kubevirt image. If you built your own and pushed it into a
-registry, run:
-```
-make manifests
-```
-Then apply them to your cluster
-```
-kubectl apply -f manifests/vdpa-mutating-webhook.yaml
 ```
 
 ### Node plugin hook

@@ -3,10 +3,8 @@ IMAGE_REGISTRY ?= quay.io/kubevirt
 PUSH_REGISTRY ?= $(IMAGE_REGISTRY)
 IMAGE_TAG ?= latest
 SIDECAR_NAME ?= vdpa-network-binding-sidecar
-WEBHOOK_NAME ?= vdpa-network-binding-admission-webhook
 NODEHOOK_NAME ?= vdpa-network-binding-node-hook
 VDPA_SIDECAR_IMAGE = $(IMAGE_REGISTRY)/$(SIDECAR_NAME):$(IMAGE_TAG)
-VDPA_WEBHOOK_IMAGE = $(IMAGE_REGISTRY)/$(WEBHOOK_NAME):$(IMAGE_TAG)
 VDPA_NODEHOOK_IMAGE = $(IMAGE_REGISTRY)/$(NODEHOOK_NAME):$(IMAGE_TAG)
 VDPA_NETWORK_BINDING_PLUGIN_NAME ?= vdpa
 
@@ -16,8 +14,6 @@ TEST_KUBEVIRTCI_PATH = ./test/kubevirtci
 TEST_DEVICE_PLUGIN_NAME ?= vdpa-sim-net-device-plugin
 TEST_CNI_NAME ?= vdpa-sim-net-cni
 
-WEBHOOK_MANIFEST_TEMPLATE_PATH ?= $(PWD)/templates/webhook-manifest-template.yaml
-WEBHOOK_MANIFEST_PATH ?= $(PWD)/manifests/vdpa-mutating-webhook.yaml
 SIDECAR_MANIFEST_TEMPLATE_PATH ?= $(PWD)/templates/sidecar-patch-template.yaml
 SIDECAR_MANIFEST_PATH ?= $(PWD)/manifests/vdpa-sidecar-patch.yaml
 NODE_HOOK_MANIFEST_TEMPLATE_PATH ?= $(PWD)/templates/node-hook-template.yaml
@@ -30,13 +26,10 @@ OCI_BIN ?= podman
 
 all: lint format test build
 
-build: build_sidecar build_admission_webhook build_nodehook
+build: build_sidecar build_nodehook
 
 build_sidecar:
 	go build -C sidecar $(GO_BUILD_FLAGS) -o ../$(BUILD_DIR)/$(SIDECAR_NAME)
-
-build_admission_webhook:
-	go build -C webhook $(GO_BUILD_FLAGS) -o ../$(BUILD_DIR)/$(WEBHOOK_NAME)
 
 build_nodehook:
 	CGO_ENABLED=0 go build -C nodehook $(GO_BUILD_FLAGS) -o ../$(BUILD_DIR)/$(NODEHOOK_NAME)
@@ -54,21 +47,18 @@ clean:
 	git restore manifests
 
 format:
-	@gofmt -d -s -e sidecar webhook nodehook test
+	@gofmt -d -s -e sidecar nodehook test
 
 format_inplace:
-	gofmt -s -e -w sidecar webhook nodehook test
+	gofmt -s -e -w sidecar nodehook test
 
 lint:
 	golangci-lint run
 
-test: test_sidecar test_webhook test_nodehook
+test: test_sidecar test_nodehook
 
 test_sidecar:
 	ginkgo -v -r sidecar
-
-test_webhook:
-	ginkgo -v -r webhook
 
 test_nodehook:
 	ginkgo -v -r nodehook
@@ -81,9 +71,6 @@ images: image_sidecar image_nodehook
 image_sidecar:
 	$(OCI_BIN) build -f sidecar/Containerfile -t $(VDPA_SIDECAR_IMAGE) .
 
-image_webhook:
-	$(OCI_BIN) build -f webhook/Containerfile -t $(VDPA_WEBHOOK_IMAGE) .
-
 image_nodehook:
 	$(OCI_BIN) build -f nodehook/Containerfile -t $(VDPA_NODEHOOK_IMAGE) .
 
@@ -94,12 +81,6 @@ push_sidecar:
 		--tls-verify=$(REQUIRE_IMAGE_PUSH_TLS_VERIFICATION) \
 		$(VDPA_SIDECAR_IMAGE) \
 		$(PUSH_REGISTRY)/$(SIDECAR_NAME):$(IMAGE_TAG)
-
-push_webhook:
-	$(OCI_BIN) push \
-		--tls-verify=$(REQUIRE_IMAGE_PUSH_TLS_VERIFICATION) \
-		$(VDPA_WEBHOOK_IMAGE) \
-		$(PUSH_REGISTRY)/$(WEBHOOK_NAME):$(IMAGE_TAG)
 
 push_nodehook:
 	$(OCI_BIN) push \
@@ -131,12 +112,6 @@ push_test_cni:
 
 manifests: manifest_sidecar manifest_nodehook
 
-manifest_webhook:
-	@cat $(WEBHOOK_MANIFEST_TEMPLATE_PATH) | \
-		VDPA_WEBHOOK_IMAGE=$(VDPA_WEBHOOK_IMAGE) \
-		VDPA_NETWORK_BINDING_PLUGIN_NAME=$(VDPA_NETWORK_BINDING_PLUGIN_NAME) \
-		envsubst > $(WEBHOOK_MANIFEST_PATH)
-
 manifest_sidecar:
 	@cat $(SIDECAR_MANIFEST_TEMPLATE_PATH) | \
 		VDPA_SIDECAR_IMAGE=$(VDPA_SIDECAR_IMAGE) \
@@ -150,9 +125,6 @@ manifest_nodehook:
 		envsubst > $(NODE_HOOK_MANIFEST_PATH)
 
 sync: sync_sidecar sync_nodehook
-
-sync_webhook: manifest_webhook
-	./test/cluster/kubectl.sh apply -f $(WEBHOOK_MANIFEST_PATH)
 
 sync_sidecar: manifest_sidecar
 	./test/cluster/kubectl.sh patch -n kubevirt kubevirts kubevirt --type merge --patch-file $(SIDECAR_MANIFEST_PATH)
@@ -195,14 +167,43 @@ cluster_patch_kubevirt_featuregates:
 test_integration:
 	go test -C test/integration/ -kubeconfig=${KUBECONFIG} --ginkgo.vv
 
-.PHONY: build build_sidecar build_admission_webhook build_test_device_plugin \
-        clean format format_inplace lint test test_sidecar test_webhook \
-        images image_sidecar image_webhook image_test_device_plugin push \
-        push_sidecar push_webhook push_test_device_plugin manifests \
-        manifest_webhook manifest_sidecar sync sync_webhook sync_sidecar \
-        build_test_cni image_test_cni push_test_cni sync_test_dependencies \
-        image_test_dependencies push_test_dependencies build_test_dependencies \
-        kubevirtci_init kubevirtci_update cluster_up cluster_down \
-		cluster_sync_kubevirt test_integration generate build_nodehook test_nodehook \
-		image_nodehook push_nodehook manifest_nodehook sync_nodehook \
-		cluster_patch_kubevirt_featuregates
+.PHONY: build \
+	build_sidecar \
+	build_test_device_plugin \
+	clean \
+	format \
+	format_inplace \
+	lint \
+	test \
+	test_sidecar \
+	images \
+	image_sidecar \
+	image_test_device_plugin \
+	push \
+	push_sidecar \
+	push_test_device_plugin \
+	manifests \
+	manifest_sidecar \
+	sync \
+	sync_sidecar \
+	build_test_cni \
+	image_test_cni \
+	push_test_cni \
+	sync_test_dependencies \
+	image_test_dependencies \
+	push_test_dependencies \
+	build_test_dependencies \
+	kubevirtci_init \
+	kubevirtci_update \
+	cluster_up \
+	cluster_down \
+	cluster_sync_kubevirt \
+	test_integration \
+	generate \
+	build_nodehook \
+	test_nodehook \
+	image_nodehook \
+	push_nodehook \
+	manifest_nodehook \
+	sync_nodehook \
+	cluster_patch_kubevirt_featuregates
