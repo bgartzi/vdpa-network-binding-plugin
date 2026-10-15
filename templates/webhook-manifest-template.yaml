@@ -76,6 +76,7 @@ spec:
         image: ${VDPA_WEBHOOK_IMAGE}
         args:
         - --port=8443
+        - --plugin-name=${VDPA_NETWORK_BINDING_PLUGIN_NAME}
         ports:
         - containerPort: 8443
           name: https

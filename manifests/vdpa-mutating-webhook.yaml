@@ -76,6 +76,7 @@ spec:
         image: quay.io/kubevirt/vdpa-network-binding-admission-webhook:latest
         args:
         - --port=8443
+        - --plugin-name=vdpa
         ports:
         - containerPort: 8443
           name: https
