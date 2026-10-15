@@ -37,9 +37,10 @@ import (
 )
 
 const (
-	webhookName = "kubevirt-vdpa-mutating-webhook"
-	webhookPath = "/mutate-vdpa"
-	healthzPath = "/healthz"
+	webhookName            = "kubevirt-vdpa-mutating-webhook"
+	webhookPath            = "/mutate-vdpa"
+	healthzPath            = "/healthz"
+	defaultVdpaBindingName = "vdpa"
 )
 
 func main() {
@@ -48,6 +49,7 @@ func main() {
 	port := flag.Int("port", 8443, "Webhook listen port")
 	svcName := flag.String("service-name", webhookName, "Webhook service name")
 	svcNamespace := flag.String("namespace", "kubevirt", "Webhook service namespace")
+	networkBindingPluginName := flag.String("plugin-name", defaultVdpaBindingName, "Network binding plugin name registered in KubeVirt")
 	flag.Parse()
 
 	certMgr, err := cert.NewCertManager(*svcName, *svcNamespace, webhookName)
@@ -60,8 +62,10 @@ func main() {
 	defer stopRenewal()
 	go certMgr.RunRenewalLoop(renewalCtx)
 
+	vpdaMutationHandler := mutate.NewVdpaMutationHandler(*networkBindingPluginName)
+
 	mux := http.NewServeMux()
-	mux.HandleFunc(webhookPath, mutate.HandleMutateVDPA)
+	mux.HandleFunc(webhookPath, vpdaMutationHandler.HandleMutateVDPA)
 	mux.HandleFunc(healthzPath, handleHealthz)
 
 	srv := &http.Server{
