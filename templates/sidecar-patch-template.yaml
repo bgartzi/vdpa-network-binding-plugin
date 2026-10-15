@@ -2,8 +2,8 @@ spec:
   configuration:
     network:
       binding:
-        vdpa:
-          sidecarImage: VDPA_SIDECAR_MANIFEST_TEMPLATE_IMAGE
+        ${VDPA_NETWORK_BINDING_PLUGIN_NAME}:
+          sidecarImage: ${VDPA_SIDECAR_IMAGE}
           downwardAPI: "device-info"
           migration:
             method: ""

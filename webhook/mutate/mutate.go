@@ -38,10 +38,13 @@ import (
 )
 
 const (
-	vdpaBindingName = "vdpa"
-	pathMemoryVM    = "/spec/template/spec/domain/memory"
-	pathMemoryVMI   = "/spec/domain/memory"
+	pathMemoryVM  = "/spec/template/spec/domain/memory"
+	pathMemoryVMI = "/spec/domain/memory"
 )
+
+type VdpaMutationHandler struct {
+	registeredBindingName string
+}
 
 func pathReservedOverhead(memoryPath string) string {
 	return filepath.Join(memoryPath, "reservedOverhead")
@@ -55,7 +58,11 @@ func pathAddedOverhead(memoryPath string) string {
 	return filepath.Join(pathReservedOverhead(memoryPath), "addedOverhead")
 }
 
-func HandleMutateVDPA(resp http.ResponseWriter, req *http.Request) {
+func NewVdpaMutationHandler(name string) *VdpaMutationHandler {
+	return &VdpaMutationHandler{name}
+}
+
+func (h *VdpaMutationHandler) HandleMutateVDPA(resp http.ResponseWriter, req *http.Request) {
 	review, err := getAdmissionReview(req)
 	if err != nil {
 		log.Log.Reason(err).Error("failed to parse AdmissionReview")
@@ -70,7 +77,7 @@ func HandleMutateVDPA(resp http.ResponseWriter, req *http.Request) {
 		},
 	}
 
-	reviewResponse := mutateVM(review)
+	reviewResponse := h.mutateVM(review)
 	if reviewResponse != nil {
 		response.Response = reviewResponse
 		response.Response.UID = review.Request.UID
@@ -92,7 +99,7 @@ func HandleMutateVDPA(resp http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func mutateVM(ar *admissionv1.AdmissionReview) *admissionv1.AdmissionResponse {
+func (h *VdpaMutationHandler) mutateVM(ar *admissionv1.AdmissionReview) *admissionv1.AdmissionResponse {
 	var vmSpec *v1.VirtualMachineInstanceSpec
 	var memoryPath string
 
@@ -115,7 +122,7 @@ func mutateVM(ar *admissionv1.AdmissionReview) *admissionv1.AdmissionResponse {
 		return allowWithoutPatch()
 	}
 
-	vdpaCount := countVDPAInterfaces(vmSpec.Domain.Devices.Interfaces)
+	vdpaCount := h.countVDPAInterfaces(vmSpec.Domain.Devices.Interfaces)
 	if vdpaCount == 0 {
 		log.Log.V(4).Infof("VM %s/%s has no vDPA interfaces, skipping mutation", ar.Request.Namespace, ar.Request.Name)
 		return allowWithoutPatch()
@@ -168,10 +175,10 @@ func mutateVM(ar *admissionv1.AdmissionReview) *admissionv1.AdmissionResponse {
 	}
 }
 
-func countVDPAInterfaces(ifaces []v1.Interface) int {
+func (h *VdpaMutationHandler) countVDPAInterfaces(ifaces []v1.Interface) int {
 	count := 0
 	for _, iface := range ifaces {
-		if iface.Binding != nil && iface.Binding.Name == vdpaBindingName {
+		if iface.Binding != nil && iface.Binding.Name == h.registeredBindingName {
 			count++
 		}
 	}

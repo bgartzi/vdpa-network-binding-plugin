@@ -70,7 +70,8 @@ func (s InfoServer) Info(_ context.Context, _ *hooksInfo.InfoParams) (*hooksInfo
 }
 
 type V1alpha3Server struct {
-	Done chan struct{}
+	NetworkBindingPluginName string
+	Done                     chan struct{}
 }
 
 func (s V1alpha3Server) OnDefineDomain(_ context.Context, params *hooksV1alpha3.OnDefineDomainParams) (*hooksV1alpha3.OnDefineDomainResult, error) {
@@ -92,7 +93,7 @@ func (s V1alpha3Server) OnDefineDomain(_ context.Context, params *hooksV1alpha3.
 		return nil, fmt.Errorf("failed to get %s environment variable", hooks.ContainerNameEnvVar)
 	}
 
-	vdpaConfigurator, err := domain.NewVdpaNetworkConfigurator(vmi.Spec.Domain.Devices.Interfaces, vmi.Spec.Networks, netInfo, containerName)
+	vdpaConfigurator, err := domain.NewVdpaNetworkConfigurator(vmi.Spec.Domain.Devices.Interfaces, vmi.Spec.Networks, netInfo, containerName, s.NetworkBindingPluginName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create vdpa configurator: %v", err)
 	}

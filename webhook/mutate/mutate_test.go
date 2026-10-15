@@ -36,6 +36,10 @@ import (
 	v1 "kubevirt.io/api/core/v1"
 )
 
+const (
+	defaultTestBindingName string = "vdpa"
+)
+
 func newAdmissionReviewFromVM(vm *v1.VirtualMachine) *admissionv1.AdmissionReview {
 	vmBytes, err := json.Marshal(vm)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
@@ -86,6 +90,7 @@ func findPatch(patches []patch.PatchOperation, path string) *patch.PatchOperatio
 
 var _ = Describe("vDPA Mutating Webhook for VMs", func() {
 	var vm *v1.VirtualMachine
+	var mutator *VdpaMutationHandler
 
 	BeforeEach(func() {
 		guestMemory := resource.MustParse("2Gi")
@@ -102,6 +107,7 @@ var _ = Describe("vDPA Mutating Webhook for VMs", func() {
 				},
 			},
 		}
+		mutator = NewVdpaMutationHandler(defaultTestBindingName)
 	})
 
 	Context("mutateVM", func() {
@@ -110,7 +116,7 @@ var _ = Describe("vDPA Mutating Webhook for VMs", func() {
 				{Name: "masq-net", InterfaceBindingMethod: v1.InterfaceBindingMethod{Masquerade: &v1.InterfaceMasquerade{}}},
 			}
 			ar := newAdmissionReviewFromVM(vm)
-			resp := mutateVM(ar)
+			resp := mutator.mutateVM(ar)
 			Expect(resp.Allowed).To(BeTrue())
 			Expect(resp.Patch).To(BeNil())
 		})
@@ -120,7 +126,7 @@ var _ = Describe("vDPA Mutating Webhook for VMs", func() {
 				{Name: "vdpa-net", Binding: &v1.PluginBinding{Name: "vdpa"}},
 			}
 			ar := newAdmissionReviewFromVM(vm)
-			resp := mutateVM(ar)
+			resp := mutator.mutateVM(ar)
 			patches := getPatchesFromResponse(resp)
 
 			memLockPatch := findPatch(patches, pathMemLock(pathMemoryVM))
@@ -138,7 +144,7 @@ var _ = Describe("vDPA Mutating Webhook for VMs", func() {
 				{Name: "vdpa-net2", Binding: &v1.PluginBinding{Name: "vdpa"}},
 			}
 			ar := newAdmissionReviewFromVM(vm)
-			resp := mutateVM(ar)
+			resp := mutator.mutateVM(ar)
 			patches := getPatchesFromResponse(resp)
 
 			overheadPatch := findPatch(patches, pathAddedOverhead(pathMemoryVM))
@@ -155,7 +161,7 @@ var _ = Describe("vDPA Mutating Webhook for VMs", func() {
 				{Name: "vdpa-net", Binding: &v1.PluginBinding{Name: "vdpa"}},
 			}
 			ar := newAdmissionReviewFromVM(vm)
-			resp := mutateVM(ar)
+			resp := mutator.mutateVM(ar)
 			patches := getPatchesFromResponse(resp)
 
 			overheadPatch := findPatch(patches, pathAddedOverhead(pathMemoryVM))
@@ -172,7 +178,7 @@ var _ = Describe("vDPA Mutating Webhook for VMs", func() {
 				{Name: "passt-net", Binding: &v1.PluginBinding{Name: "passt"}},
 			}
 			ar := newAdmissionReviewFromVM(vm)
-			resp := mutateVM(ar)
+			resp := mutator.mutateVM(ar)
 			patches := getPatchesFromResponse(resp)
 
 			overheadPatch := findPatch(patches, pathAddedOverhead(pathMemoryVM))
@@ -190,7 +196,7 @@ var _ = Describe("vDPA Mutating Webhook for VMs", func() {
 				{Name: "vdpa-net2", Binding: &v1.PluginBinding{Name: "vdpa"}},
 			}
 			ar := newAdmissionReviewFromVM(vm)
-			resp := mutateVM(ar)
+			resp := mutator.mutateVM(ar)
 			patches := getPatchesFromResponse(resp)
 
 			overheadPatch := findPatch(patches, pathAddedOverhead(pathMemoryVM))
@@ -202,6 +208,7 @@ var _ = Describe("vDPA Mutating Webhook for VMs", func() {
 
 var _ = Describe("vDPA Mutating Webhook for VMIs", func() {
 	var vmi *v1.VirtualMachineInstance
+	var mutator *VdpaMutationHandler
 
 	BeforeEach(func() {
 		guestMemory := resource.MustParse("2Gi")
@@ -214,6 +221,7 @@ var _ = Describe("vDPA Mutating Webhook for VMIs", func() {
 				},
 			},
 		}
+		mutator = NewVdpaMutationHandler(defaultTestBindingName)
 	})
 
 	Context("mutateVM", func() {
@@ -222,7 +230,7 @@ var _ = Describe("vDPA Mutating Webhook for VMIs", func() {
 				{Name: "masq-net", InterfaceBindingMethod: v1.InterfaceBindingMethod{Masquerade: &v1.InterfaceMasquerade{}}},
 			}
 			ar := newAdmissionReviewFromVMI(vmi)
-			resp := mutateVM(ar)
+			resp := mutator.mutateVM(ar)
 			Expect(resp.Allowed).To(BeTrue())
 			Expect(resp.Patch).To(BeNil())
 		})
@@ -232,7 +240,7 @@ var _ = Describe("vDPA Mutating Webhook for VMIs", func() {
 				{Name: "vdpa-net", Binding: &v1.PluginBinding{Name: "vdpa"}},
 			}
 			ar := newAdmissionReviewFromVMI(vmi)
-			resp := mutateVM(ar)
+			resp := mutator.mutateVM(ar)
 			patches := getPatchesFromResponse(resp)
 
 			memLockPatch := findPatch(patches, pathMemLock(pathMemoryVMI))
@@ -250,7 +258,7 @@ var _ = Describe("vDPA Mutating Webhook for VMIs", func() {
 				{Name: "vdpa-net2", Binding: &v1.PluginBinding{Name: "vdpa"}},
 			}
 			ar := newAdmissionReviewFromVMI(vmi)
-			resp := mutateVM(ar)
+			resp := mutator.mutateVM(ar)
 			patches := getPatchesFromResponse(resp)
 
 			overheadPatch := findPatch(patches, pathAddedOverhead(pathMemoryVMI))
@@ -267,7 +275,7 @@ var _ = Describe("vDPA Mutating Webhook for VMIs", func() {
 				{Name: "vdpa-net", Binding: &v1.PluginBinding{Name: "vdpa"}},
 			}
 			ar := newAdmissionReviewFromVMI(vmi)
-			resp := mutateVM(ar)
+			resp := mutator.mutateVM(ar)
 			patches := getPatchesFromResponse(resp)
 
 			overheadPatch := findPatch(patches, pathAddedOverhead(pathMemoryVMI))
@@ -284,7 +292,7 @@ var _ = Describe("vDPA Mutating Webhook for VMIs", func() {
 				{Name: "passt-net", Binding: &v1.PluginBinding{Name: "passt"}},
 			}
 			ar := newAdmissionReviewFromVMI(vmi)
-			resp := mutateVM(ar)
+			resp := mutator.mutateVM(ar)
 			patches := getPatchesFromResponse(resp)
 
 			overheadPatch := findPatch(patches, pathAddedOverhead(pathMemoryVMI))
@@ -302,7 +310,7 @@ var _ = Describe("vDPA Mutating Webhook for VMIs", func() {
 				{Name: "vdpa-net2", Binding: &v1.PluginBinding{Name: "vdpa"}},
 			}
 			ar := newAdmissionReviewFromVMI(vmi)
-			resp := mutateVM(ar)
+			resp := mutator.mutateVM(ar)
 			patches := getPatchesFromResponse(resp)
 
 			overheadPatch := findPatch(patches, pathAddedOverhead(pathMemoryVMI))

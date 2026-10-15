@@ -3,6 +3,7 @@ package integration
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -28,11 +29,20 @@ import (
 
 const TestVMINamePrefix = "testvmi"
 const sysNetPath = "/sys/class/net/"
+const bindingNameEnvVar = "VDPA_NETWORK_BINDING_PLUGIN_NAME"
+
+var vdpaBindingPluginName = "vdpa"
+
+func setVdpaBindingNameFromEnv() {
+	if envName, ok := os.LookupEnv(bindingNameEnvVar); ok {
+		vdpaBindingPluginName = envName
+	}
+}
 
 func interfaceDeviceWithVDPABinding(name string) v1.Interface {
 	return v1.Interface{
 		Name:    name,
-		Binding: &v1.PluginBinding{Name: "vdpa"},
+		Binding: &v1.PluginBinding{Name: vdpaBindingPluginName},
 	}
 }
 

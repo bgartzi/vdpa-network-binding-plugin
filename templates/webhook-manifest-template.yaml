@@ -73,9 +73,10 @@ spec:
       serviceAccountName: kubevirt-vdpa-mutating-webhook
       containers:
       - name: webhook
-        image: VDPA_WEBHOOK_MANIFEST_TEMPLATE_IMAGE
+        image: ${VDPA_WEBHOOK_IMAGE}
         args:
         - --port=8443
+        - --plugin-name=${VDPA_NETWORK_BINDING_PLUGIN_NAME}
         ports:
         - containerPort: 8443
           name: https

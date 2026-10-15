@@ -4,6 +4,9 @@ PUSH_REGISTRY ?= $(IMAGE_REGISTRY)
 IMAGE_TAG ?= latest
 SIDECAR_NAME ?= vdpa-network-binding-sidecar
 WEBHOOK_NAME ?= vdpa-network-binding-admission-webhook
+VDPA_SIDECAR_IMAGE = $(IMAGE_REGISTRY)/$(SIDECAR_NAME):$(IMAGE_TAG)
+VDPA_WEBHOOK_IMAGE = $(IMAGE_REGISTRY)/$(WEBHOOK_NAME):$(IMAGE_TAG)
+VDPA_NETWORK_BINDING_PLUGIN_NAME ?= vdpa
 
 REQUIRE_IMAGE_PUSH_TLS_VERIFICATION ?= true
 
@@ -63,23 +66,23 @@ test_webhook:
 images: image_sidecar image_webhook
 
 image_sidecar:
-	$(OCI_BIN) build -f sidecar/Containerfile -t $(IMAGE_REGISTRY)/$(SIDECAR_NAME):$(IMAGE_TAG) .
+	$(OCI_BIN) build -f sidecar/Containerfile -t $(VDPA_SIDECAR_IMAGE) .
 
 image_webhook:
-	$(OCI_BIN) build -f webhook/Containerfile -t $(IMAGE_REGISTRY)/$(WEBHOOK_NAME):$(IMAGE_TAG) .
+	$(OCI_BIN) build -f webhook/Containerfile -t $(VDPA_WEBHOOK_IMAGE) .
 
 push: push_sidecar push_webhook
 
 push_sidecar:
 	$(OCI_BIN) push \
 		--tls-verify=$(REQUIRE_IMAGE_PUSH_TLS_VERIFICATION) \
-		$(IMAGE_REGISTRY)/$(SIDECAR_NAME):$(IMAGE_TAG) \
+		$(VDPA_SIDECAR_IMAGE) \
 		$(PUSH_REGISTRY)/$(SIDECAR_NAME):$(IMAGE_TAG)
 
 push_webhook:
 	$(OCI_BIN) push \
 		--tls-verify=$(REQUIRE_IMAGE_PUSH_TLS_VERIFICATION) \
-		$(IMAGE_REGISTRY)/$(WEBHOOK_NAME):$(IMAGE_TAG) \
+		$(VDPA_WEBHOOK_IMAGE) \
 		$(PUSH_REGISTRY)/$(WEBHOOK_NAME):$(IMAGE_TAG)
 
 
@@ -107,10 +110,16 @@ push_test_cni:
 manifests: manifest_webhook manifest_sidecar
 
 manifest_webhook:
-	@sed -e "s|VDPA_WEBHOOK_MANIFEST_TEMPLATE_IMAGE|$(IMAGE_REGISTRY)/$(WEBHOOK_NAME):$(IMAGE_TAG)|g" $(WEBHOOK_MANIFEST_TEMPLATE_PATH) > $(WEBHOOK_MANIFEST_PATH)
+	@cat $(WEBHOOK_MANIFEST_TEMPLATE_PATH) | \
+		VDPA_WEBHOOK_IMAGE=$(VDPA_WEBHOOK_IMAGE) \
+		VDPA_NETWORK_BINDING_PLUGIN_NAME=$(VDPA_NETWORK_BINDING_PLUGIN_NAME) \
+		envsubst > $(WEBHOOK_MANIFEST_PATH)
 
 manifest_sidecar:
-	@sed -e "s|VDPA_SIDECAR_MANIFEST_TEMPLATE_IMAGE|$(IMAGE_REGISTRY)/$(SIDECAR_NAME):$(IMAGE_TAG)|g" $(SIDECAR_MANIFEST_TEMPLATE_PATH) > $(SIDECAR_MANIFEST_PATH)
+	@cat $(SIDECAR_MANIFEST_TEMPLATE_PATH) | \
+		VDPA_SIDECAR_IMAGE=$(VDPA_SIDECAR_IMAGE) \
+		VDPA_NETWORK_BINDING_PLUGIN_NAME=$(VDPA_NETWORK_BINDING_PLUGIN_NAME) \
+		envsubst > $(SIDECAR_MANIFEST_PATH)
 
 sync: sync_webhook sync_sidecar
 
