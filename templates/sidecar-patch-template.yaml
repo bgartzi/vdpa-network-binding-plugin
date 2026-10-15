@@ -3,7 +3,7 @@ spec:
     network:
       binding:
         vdpa:
-          sidecarImage: VDPA_SIDECAR_MANIFEST_TEMPLATE_IMAGE
+          sidecarImage: ${VDPA_SIDECAR_IMAGE}
           downwardAPI: "device-info"
           migration:
             method: ""
