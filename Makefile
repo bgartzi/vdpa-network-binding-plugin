@@ -7,6 +7,7 @@ WEBHOOK_NAME ?= vdpa-network-binding-admission-webhook
 NODEHOOK_NAME ?= vdpa-network-binding-node-hook
 VDPA_SIDECAR_IMAGE = $(IMAGE_REGISTRY)/$(SIDECAR_NAME):$(IMAGE_TAG)
 VDPA_WEBHOOK_IMAGE = $(IMAGE_REGISTRY)/$(WEBHOOK_NAME):$(IMAGE_TAG)
+VDPA_NODEHOOK_IMAGE = $(IMAGE_REGISTRY)/$(NODEHOOK_NAME):$(IMAGE_TAG)
 VDPA_NETWORK_BINDING_PLUGIN_NAME ?= vdpa
 
 REQUIRE_IMAGE_PUSH_TLS_VERIFICATION ?= true
@@ -73,7 +74,7 @@ test_nodehook:
 generate:
 	find . -type d -name vendor -prune -o -name kubevirtci -type d -prune -o -type f -name "*.go" -exec go generate {} \;
 
-images: image_sidecar image_webhook
+images: image_sidecar image_webhook image_nodehook
 
 image_sidecar:
 	$(OCI_BIN) build -f sidecar/Containerfile -t $(VDPA_SIDECAR_IMAGE) .
@@ -81,7 +82,10 @@ image_sidecar:
 image_webhook:
 	$(OCI_BIN) build -f webhook/Containerfile -t $(VDPA_WEBHOOK_IMAGE) .
 
-push: push_sidecar push_webhook
+image_nodehook:
+	$(OCI_BIN) build -f nodehook/Containerfile -t $(VDPA_NODEHOOK_IMAGE) .
+
+push: push_sidecar push_webhook push_nodehook
 
 push_sidecar:
 	$(OCI_BIN) push \
@@ -94,6 +98,12 @@ push_webhook:
 		--tls-verify=$(REQUIRE_IMAGE_PUSH_TLS_VERIFICATION) \
 		$(VDPA_WEBHOOK_IMAGE) \
 		$(PUSH_REGISTRY)/$(WEBHOOK_NAME):$(IMAGE_TAG)
+
+push_nodehook:
+	$(OCI_BIN) push \
+		--tls-verify=$(REQUIRE_IMAGE_PUSH_TLS_VERIFICATION) \
+		$(VDPA_NODEHOOK_IMAGE) \
+		$(PUSH_REGISTRY)/$(NODEHOOK_NAME):$(IMAGE_TAG)
 
 
 image_test_dependencies: image_test_device_plugin image_test_cni
@@ -180,3 +190,4 @@ test_integration:
         image_test_dependencies push_test_dependencies build_test_dependencies \
         kubevirtci_init kubevirtci_update cluster_up cluster_down \
 		cluster_sync_kubevirt test_integration generate build_nodehook test_nodehook \
+		image_nodehook push_nodehook
